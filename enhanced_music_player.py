@@ -37,8 +37,9 @@ class EnhancedMusicPlayer:
                     self.musical_feel = line.split(":", 1)[1]
                     print(f"💫 Musical Feel: {self.musical_feel}")
                 elif line.startswith("Original_BPM:"):
-                    self.tempo_bpm = int(line.split(":", 1)[1])
-                    print(f"⏱️  Tempo: {self.tempo_bpm} BPM")
+                    self.tempo_bpm = float(line.split(":", 1)[1])
+                    tempo_disp = int(self.tempo_bpm) if self.tempo_bpm.is_integer() else self.tempo_bpm
+                    print(f"⏱️  Tempo: {tempo_disp} BPM")
                 elif line.startswith("Key_Signature:"):
                     self.key_signature = line.split(":", 1)[1]
                     print(f"🎹 Key: {self.key_signature}")
@@ -232,7 +233,8 @@ class EnhancedMusicPlayer:
         print(f"\n🎵 Musical Context:")
         print(f"   Time Signature: {self.time_signature}")
         print(f"   Feel: {self.musical_feel}")
-        print(f"   Tempo: {self.tempo_bpm} BPM")
+        tempo_disp = int(self.tempo_bpm) if isinstance(self.tempo_bpm, float) and self.tempo_bpm.is_integer() else self.tempo_bpm
+        print(f"   Tempo: {tempo_disp} BPM")
         print(f"   Notes to play: {len(song_notes)}")
         
         print(f"\n🎮 Starting playback in 3 seconds...")
@@ -312,7 +314,8 @@ class EnhancedMusicPlayer:
         print(f"\n🏁 Playback finished!")
         print(f"✅ Successfully played: {success_count} notes/chords")
         print(f"🎼 Musical feel: {self.musical_feel} in {self.time_signature} time")
-        print(f"⏱️  Tempo: {self.tempo_bpm} BPM")
+        tempo_disp = int(self.tempo_bpm) if isinstance(self.tempo_bpm, float) and self.tempo_bpm.is_integer() else self.tempo_bpm
+        print(f"⏱️  Tempo: {tempo_disp} BPM")
         if error_count > 0:
             print(f"❌ Errors/Skipped: {error_count} notes")
     
@@ -418,7 +421,8 @@ class EnhancedMusicPlayer:
         
         print(f"\n🏁 Playback finished!")
         print(f"✅ Successfully played: {success_count} notes/chords")
-        print(f"⏱️  Using default tempo: {self.tempo_bpm} BPM")
+        tempo_disp = int(self.tempo_bpm) if isinstance(self.tempo_bpm, float) and self.tempo_bpm.is_integer() else self.tempo_bpm
+        print(f"⏱️  Using default tempo: {tempo_disp} BPM")
         if error_count > 0:
             print(f"❌ Errors/Skipped: {error_count} notes")
 

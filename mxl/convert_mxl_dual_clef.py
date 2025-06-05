@@ -545,7 +545,10 @@ def convert_mxl_with_dual_clef(mxl_file_path, output_path=None, custom_tempo=Non
             f.write(f"Musical_Feel:{metadata['feel']}\n")
             f.write(f"Key_Signature:{metadata['key_signature']}\n")
             f.write(f"Sharps:{metadata['sharps']}\n")
-            f.write(f"Original_BPM:{metadata['tempo_bpm']}\n")
+            tempo_val = metadata['tempo_bpm']
+            if isinstance(tempo_val, float) and tempo_val.is_integer():
+                tempo_val = int(tempo_val)
+            f.write(f"Original_BPM:{tempo_val}\n")
             f.write(f"Tempo_Marking:{metadata.get('tempo_marking', 'Moderate')}\n")
             
             # Add metadata about clefs/staves found
