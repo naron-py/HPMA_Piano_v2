@@ -1,2 +1,4 @@
 pyautogui>=0.9.54
 music21>=9.7.0
+# Pillow is needed on some systems for PyAutoGUI screenshots
+pillow>=9.0.0
