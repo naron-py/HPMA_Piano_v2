@@ -665,9 +665,9 @@ def extract_note_from_element(element, start_time, quarter_note_duration, metada
         # Calculate duration in seconds
         duration_seconds = duration_quarters * quarter_note_duration
         
-        # Apply musical feel timing adjustments
-        if 'feel' in metadata:
-            duration_seconds = apply_time_signature_feel(duration_seconds, metadata['feel'], beat_position)
+        # For conversion we keep the raw duration.  Any expressive timing is
+        # applied later during playback so the text file faithfully reflects the
+        # original note lengths.
             
         # Calculate end time
         end_time = start_time + duration_seconds
@@ -940,8 +940,10 @@ def convert_mxl_with_dual_clef(mxl_file_path, output_path=None, custom_tempo=Non
         # Find all unique time points where notes start or end
         time_points = set()
         for note_event in all_sustained_notes:
-            time_points.add(note_event.start_time)
-            time_points.add(note_event.end_time)
+            # Round to microseconds to avoid floating point artefacts that can
+            # lead to spurious very short intervals.
+            time_points.add(round(note_event.start_time, 6))
+            time_points.add(round(note_event.end_time, 6))
         
         # Ensure 0.0 is a time point if there are notes and the earliest note doesn't start at 0.0
         if all_sustained_notes:
@@ -954,7 +956,9 @@ def convert_mxl_with_dual_clef(mxl_file_path, output_path=None, custom_tempo=Non
         # Filter out very close time points to avoid micro-duration segments
         if time_points:
             unique_time_points = [time_points[0]]
-            tolerance = 0.001  # 1ms tolerance for distinct points
+            # Use a very small tolerance to collapse nearly-identical times
+            # caused by rounding while keeping true rhythmic divisions.
+            tolerance = 0.0005
             
             for i in range(1, len(time_points)):
                 if time_points[i] > time_points[i-1] + tolerance:
@@ -971,7 +975,7 @@ def convert_mxl_with_dual_clef(mxl_file_path, output_path=None, custom_tempo=Non
             for i in range(len(time_points) - 1):
                 interval_start_time = time_points[i]
                 interval_end_time = time_points[i+1]
-                interval_duration = interval_end_time - interval_start_time
+                interval_duration = round(interval_end_time - interval_start_time, 6)
 
                 # Skip negligible duration intervals
                 if interval_duration <= 0.001:
