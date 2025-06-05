@@ -16,6 +16,8 @@ from dataclasses import dataclass
 from typing import List, Dict, Set, Tuple, Optional
 from music21 import converter, note, chord, meter, tempo, key, dynamics, expressions, clef, stream
 
+from table_utils import SONGS_DIR, print_table
+
 def list_and_select_mxl_file(directory=None):
     """
     Scans the directory for MXL files, lists them, and prompts user to select one.
@@ -25,19 +27,36 @@ def list_and_select_mxl_file(directory=None):
         directory = r"c:\Users\domef\OneDrive\Desktop\HPMA_Piano\mxl"
     
     print(f"\n--- Available MXL Files in '{directory}' ---")
-    
+
     # Find all MXL files
     mxl_pattern = os.path.join(directory, "*.mxl")
-    mxl_files = glob.glob(mxl_pattern)
-    
+    mxl_files = sorted(glob.glob(mxl_pattern))
+
     if not mxl_files:
         print(f"No .mxl files found in '{directory}'.")
         return None
-    
-    # Display the list of MXL files
-    for i, mxl_file in enumerate(mxl_files):
+
+    rows = []
+    songs_dir = SONGS_DIR
+
+    for i, mxl_file in enumerate(mxl_files, 1):
         filename = os.path.basename(mxl_file)
-        print(f"[{i+1}] {filename}")
+        bpm = "?"
+        ts = "?"
+        try:
+            score = converter.parse(mxl_file)
+            meta = extract_musical_metadata(score)
+            bpm = meta.get("tempo_bpm", "?")
+            ts = meta.get("time_signature", "?")
+        except Exception:
+            pass
+
+        txt_name = os.path.splitext(filename)[0] + ".txt"
+        txt_path = os.path.join(songs_dir, txt_name)
+        exists = "Yes" if os.path.exists(txt_path) else "No"
+        rows.append([i, filename, bpm, ts, exists])
+
+    print_table(["No.", "Song Name", "BPM", "Time Sig", "Converted"], rows)
     
     while True:
         choice = input("Enter the number of the MXL file to convert (or 'q' to quit): ").strip().lower()

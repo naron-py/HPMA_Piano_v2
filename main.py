@@ -15,11 +15,32 @@ except ImportError as e:
 
 from enhanced_music_player import EnhancedMusicPlayer
 from music_file_parser import parse_music_file
-
-# Define the directory where your song .txt files will be stored
-SONGS_DIR = "songs"
+from table_utils import SONGS_DIR, print_table
 
 
+
+
+def _get_song_metadata(file_path):
+    """Extract tempo and time signature from a song text file."""
+    tempo = "?"
+    time_sig = "?"
+    try:
+        with open(file_path, "r", encoding="utf-8") as f:
+            for _ in range(20):
+                line = f.readline()
+                if not line:
+                    break
+                if line.startswith("Original_BPM:"):
+                    tempo = line.split(":", 1)[1].strip()
+                elif line.startswith("Time_Signature:"):
+                    time_sig = line.split(":", 1)[1].strip()
+                if tempo != "?" and time_sig != "?":
+                    break
+    except Exception:
+        pass
+    return tempo, time_sig
+
+# SONGS_DIR constant imported from table_utils
 def has_musical_metadata(file_path):
     """Check if the given text file contains musical metadata headers."""
     try:
@@ -54,13 +75,18 @@ def list_and_select_song():
         if filename.lower().endswith(".txt"):
             available_files.append(filename)
 
+    available_files = sorted(available_files)
+
     if not available_files:
         print(f"No .txt song files found in '{SONGS_DIR}/'.")
         return None
 
-    # Display the list of songs
-    for i, song_name in enumerate(available_files):
-        print(f"[{i+1}] {song_name}")
+    rows = []
+    for i, song_name in enumerate(available_files, 1):
+        bpm, ts = _get_song_metadata(os.path.join(SONGS_DIR, song_name))
+        rows.append([i, song_name, bpm, ts])
+
+    print_table(["No.", "Song Name", "BPM", "Time Sig"], rows)
 
     while True:
         choice = input("Enter the number of the song to play (or 'q' to quit): ").strip().lower()
