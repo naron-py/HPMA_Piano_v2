@@ -19,6 +19,21 @@ from music_file_parser import parse_music_file
 # Define the directory where your song .txt files will be stored
 SONGS_DIR = "songs"
 
+
+def has_musical_metadata(file_path):
+    """Check if the given text file contains musical metadata headers."""
+    try:
+        with open(file_path, "r", encoding="utf-8") as f:
+            for _ in range(10):
+                line = f.readline()
+                if not line:
+                    break
+                if line.startswith(("Time_Signature:", "Musical_Feel:", "Original_BPM:")):
+                    return True
+    except Exception:
+        pass
+    return False
+
 def list_and_select_song():
     """
     Scans the SONGS_DIR, lists available .txt song files,
@@ -158,9 +173,12 @@ def main():
         player = EnhancedMusicPlayer()
         
         # Check if this is a file with musical information
-        if (source_file_path.endswith('_enhanced.txt') or 
+        if (
+            source_file_path.endswith('_enhanced.txt') or
             source_file_path.endswith('_sustained.txt') or
-            source_file_path.endswith('_dual_clef.txt')):
+            source_file_path.endswith('_dual_clef.txt') or
+            has_musical_metadata(source_file_path)
+        ):
             print("🎵 Detected musical file with enhanced information - using musical feel player!")
             print("🎹 Playing with proper rhythm and feel...")
             player.play_song_with_musical_feel(source_file_path)
