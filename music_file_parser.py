@@ -1,199 +1,96 @@
-# music_file_parser.py - Enhanced parser that properly handles multi-part scores
-
 import music21
-from music21 import stream, note, chord, duration
+from music21 import note, chord, tempo
 from key_mapper import convert_standard_note_to_custom
 
-# Set the tempo from your sheet music (e.g., J = 98 BPM from your PDF)
+# Default tempo if none is found in the score
 TEMPO_BPM = 98
 
-def parse_music_file(file_path):
+
+def parse_music_file(file_path, manual_tempo=None):
+    """Parse a MusicXML/MIDI file into a list of playable note strings.
+
+    Notes sounding at the same time are combined into chords. Durations are
+    calculated using the note lengths and the tempo found in the score. If no
+    tempo marking exists, the user is prompted to provide one or the default is
+    used.
     """
-    Enhanced music file parser that properly handles multi-part scores.
-    Combines all parts and analyzes true simultaneous notes across all parts.
-    """
-    song_notes_list = []
+    song_notes = []
     try:
         print(f"🎵 Loading music file: {file_path}")
         score = music21.converter.parse(file_path)
-        print(f"✓ File loaded successfully")
+        print("✓ File loaded successfully")
         print(f"📊 Score contains {len(score.parts)} parts")
-        
-        # Collect ALL elements from ALL parts with their timing
-        all_elements = []
-        
+
+        if manual_tempo is not None:
+            tempo_bpm = float(manual_tempo)
+        else:
+            tempo_bpm = TEMPO_BPM
+            tempos = score.flat.getElementsByClass(tempo.MetronomeMark)
+            if tempos and tempos[0].number:
+                tempo_bpm = float(tempos[0].number)
+            else:
+                try:
+                    user_input = input(
+                        f"⚠️  Tempo not found in score. Enter tempo in BPM (default {TEMPO_BPM}): "
+                    ).strip()
+                    if user_input:
+                        tempo_bpm = float(user_input)
+                except Exception:
+                    print("Invalid tempo input. Using default.")
+
+        qdur = 60.0 / tempo_bpm
+
+        events = []  # list of (note_str, start_time, end_time)
+        time_points = set()
+
         for part_idx, part in enumerate(score.parts):
             print(f"   Part {part_idx + 1}: {part.getInstrument()}")
-            part_elements = part.flat.notesAndRests
-            print(f"      Elements in this part: {len(part_elements)}")
-            
-            for element in part_elements:
-                offset = float(element.offset)
-                all_elements.append((offset, element, part_idx))
-        
-        print(f"🎼 Total elements across all parts: {len(all_elements)}")
-        
-        # Sort by offset time to process chronologically
-        all_elements.sort(key=lambda x: x[0])
-        
-        # Group elements by their start time (with small tolerance for floating point)
-        time_groups = {}
-        tolerance = 0.001
-        
-        for offset, element, part_idx in all_elements:
-            # Find if there's already a time group close to this offset
-            matched_time = None
-            for existing_time in time_groups.keys():
-                if abs(offset - existing_time) <= tolerance:
-                    matched_time = existing_time
-                    break
-            
-            if matched_time is None:
-                matched_time = offset
-                time_groups[matched_time] = []
-            
-            time_groups[matched_time].append((element, part_idx))
-        
-        print(f"⏱️  Found {len(time_groups)} unique time points")
-        
-        # Process each time group
-        processed_notes = 0
-        skipped_notes = 0
-        chord_count = 0
-        rest_count = 0
-        
-        for time_offset in sorted(time_groups.keys()):
-            elements_at_time = time_groups[time_offset]
-            
-            result = process_multi_part_group(elements_at_time, time_offset)
-            if result:
-                song_notes_list.extend(result['notes'])
-                processed_notes += result['processed']
-                skipped_notes += result['skipped']
-                chord_count += result['chords']
-                rest_count += result['rests']
-        
-        print(f"✅ Processing complete!")
-        print(f"   📝 Total elements processed: {len(song_notes_list)}")
-        print(f"   🎵 Notes processed: {processed_notes}")
-        print(f"   🎹 Chords detected: {chord_count}")
-        print(f"   🎼 Rests detected: {rest_count}")
-        if skipped_notes > 0:
-            print(f"   ⚠️  Skipped: {skipped_notes} notes (outside supported range)")
-        
-        return song_notes_list
-        
+            for el in part.flat.notesAndRests:
+                offset = float(el.offset)
+                start = offset * qdur
+                dur = el.duration.quarterLength * qdur
+                end = start + dur
+                time_points.add(start)
+                time_points.add(end)
+
+                if el.isRest:
+                    continue
+
+                if isinstance(el, note.Note):
+                    nv, oc = convert_standard_note_to_custom(el.name, el.octave)
+                    if nv and oc:
+                        events.append((f"{nv}-{oc}", start, end))
+                elif isinstance(el, chord.Chord):
+                    for n in el.notes:
+                        nv, oc = convert_standard_note_to_custom(n.name, n.octave)
+                        if nv and oc:
+                            events.append((f"{nv}-{oc}", start, end))
+
+        if not events:
+            print("⚠️  No valid notes found in the score.")
+            return []
+
+        time_points = sorted(time_points)
+        for i in range(len(time_points) - 1):
+            start = time_points[i]
+            end = time_points[i + 1]
+            dur = end - start
+            if dur <= 0:
+                continue
+
+            active = {e[0] for e in events if e[1] < end and e[2] > start}
+            if active:
+                chord_str = "+".join(sorted(active))
+                song_notes.append(f"{chord_str}:{dur:.3f}")
+            else:
+                song_notes.append(f"R:{dur:.3f}")
+
+        print("✅ Processing complete!")
+        print(f"   Notes generated: {len(song_notes)}")
+        return song_notes
+
     except Exception as e:
         print(f"❌ Error parsing music file: {e}")
         import traceback
         traceback.print_exc()
         return []
-
-
-def process_multi_part_group(elements_with_parts, time_offset):
-    """
-    Process a group of musical elements from potentially multiple parts
-    that start at the same time.
-    """
-    if not elements_with_parts:
-        return None
-    
-    # Separate rests from notes
-    notes_and_chords = []
-    rests = []
-    
-    for element, part_idx in elements_with_parts:
-        if isinstance(element, music21.note.Rest):
-            rests.append((element, part_idx))
-        else:
-            notes_and_chords.append((element, part_idx))
-    
-    # If we only have rests, process the first one (ignore simultaneous rests)
-    if not notes_and_chords and rests:
-        rest_element = rests[0][0]
-        duration_seconds = (60 / TEMPO_BPM) * rest_element.duration.quarterLength
-        return {
-            'notes': [f"R:{duration_seconds:.3f}"],
-            'processed': 0,
-            'skipped': 0,
-            'chords': 0,
-            'rests': 1
-        }
-    
-    # Process all notes and chords at this time point
-    all_note_pitches = []
-    duration_seconds = None
-    processed_count = 0
-    skipped_count = 0
-    
-    for element, part_idx in notes_and_chords:
-        # Set duration from first element (should be same for simultaneous elements)
-        if duration_seconds is None:
-            duration_seconds = (60 / TEMPO_BPM) * element.duration.quarterLength
-        
-        if isinstance(element, music21.note.Note):
-            note_name = element.name
-            octave = element.octave
-            
-            custom_note_value, custom_octave = convert_standard_note_to_custom(note_name, octave)
-            
-            if custom_note_value and custom_octave:
-                all_note_pitches.append(f"{custom_note_value}-{custom_octave}")
-                processed_count += 1
-            else:
-                skipped_count += 1
-                if skipped_count <= 3:
-                    print(f"⚠️  Skipping unmapped note: {note_name}{octave} (part {part_idx + 1})")
-        
-        elif isinstance(element, music21.chord.Chord):
-            for note in element.notes:
-                note_name = note.name
-                octave = note.octave
-                
-                custom_note_value, custom_octave = convert_standard_note_to_custom(note_name, octave)
-                
-                if custom_note_value and custom_octave:
-                    all_note_pitches.append(f"{custom_note_value}-{custom_octave}")
-                    processed_count += 1
-                else:
-                    skipped_count += 1
-                    if skipped_count <= 3:
-                        print(f"⚠️  Skipping unmapped chord note: {note_name}{octave} (part {part_idx + 1})")
-    
-    if not all_note_pitches:
-        return {
-            'notes': [],
-            'processed': 0,
-            'skipped': skipped_count,
-            'chords': 0,
-            'rests': 0
-        }
-    
-    # Remove duplicates while preserving order
-    unique_pitches = []
-    seen = set()
-    for pitch in all_note_pitches:
-        if pitch not in seen:
-            unique_pitches.append(pitch)
-            seen.add(pitch)
-    
-    # Format the output
-    if len(unique_pitches) == 1:
-        # Single note
-        result_notes = [f"{unique_pitches[0]}:{duration_seconds:.3f}"]
-        chord_detected = 0
-    else:
-        # Chord - join notes with '+' to indicate simultaneous play
-        chord_string = "+".join(unique_pitches)
-        result_notes = [f"{chord_string}:{duration_seconds:.3f}"]
-        chord_detected = 1
-        if time_offset < 50:  # Only print first few chords to avoid spam
-            print(f"🎹 Chord at {time_offset:.1f}: {chord_string} ({len(unique_pitches)} notes)")
-    
-    return {
-        'notes': result_notes,
-        'processed': processed_count,
-        'skipped': skipped_count,
-        'chords': chord_detected,
-        'rests': 0
-    }
