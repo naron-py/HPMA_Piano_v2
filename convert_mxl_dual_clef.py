@@ -372,8 +372,15 @@ def extract_note_from_element(element, start_time, quarter_note_duration, metada
     
     return sustained_notes
 
-def convert_mxl_with_dual_clef(mxl_file_path, output_path=None, custom_tempo=None, custom_time_signature=None):
-    """Convert MXL to text format preserving both treble and bass clef information"""
+def convert_mxl_with_dual_clef(mxl_file_path, output_path=None, custom_tempo=None, custom_time_signature=None, start_only=False):
+    """Convert MXL to text format preserving both treble and bass clef information.
+
+    If ``start_only`` is True only notes starting at the same time are grouped
+    together.  Sustained notes from previous groups are not repeated in later
+    chords which can make the resulting text file easier to read.  This option
+    provides a simplified representation at the cost of losing some sustain
+    information.
+    """
     
     if not os.path.exists(mxl_file_path):
         print(f"❌ Error: File '{mxl_file_path}' not found.")
@@ -487,61 +494,98 @@ def convert_mxl_with_dual_clef(mxl_file_path, output_path=None, custom_tempo=Non
                     print(f"  {len(all_sustained_notes) - 5 + i}: {sn}")
         # ---- END NEW DEBUG ----
 
-        # Find all unique time points where notes start or end
-        time_points = set()
-        for note_event in all_sustained_notes: # Changed 'note' to 'note_event' for clarity
-            time_points.add(note_event.start_time)
-            time_points.add(note_event.end_time)
-        
-        # Ensure 0.0 is a time point if there are notes and the earliest note doesn't start at 0.0
-        # This captures any initial rest.
-        if all_sustained_notes:
-            min_start_time = min(n.start_time for n in all_sustained_notes)
-            if min_start_time > 0.001: # Using a small tolerance
-                time_points.add(0.0)
-        
-        time_points = sorted(list(time_points))
-        
-        # Filter out very close time points to avoid micro-duration segments if any float precision issues occurred
-        if time_points:
-            unique_time_points = [time_points[0]]
-            for i in range(1, len(time_points)):
-                if time_points[i] > time_points[i-1] + 0.0001: # Tolerance for distinct points
-                    unique_time_points.append(time_points[i])
-            time_points = unique_time_points
-        
         song_notes_list = []
-        
-        if len(time_points) >= 2: # Need at least two time points to form an interval
-            for i in range(len(time_points) - 1):
-                interval_start_time = time_points[i]
-                interval_end_time = time_points[i+1]
-                interval_duration = interval_end_time - interval_start_time
 
-                # Skip zero or negligible duration intervals
-                if interval_duration <= 0.001: 
-                    continue
+        if start_only:
+            # Group notes by their start time.  Notes that continue sounding are
+            # not repeated in later chords.  This produces a simpler output that
+            # can be easier to follow at the expense of exact sustain
+            # information.
+            grouped = {}
+            tolerance = 0.001
+            for n in all_sustained_notes:
+                st = n.start_time
+                matched = None
+                for t in grouped.keys():
+                    if abs(t - st) <= tolerance:
+                        matched = t
+                        break
+                if matched is None:
+                    grouped[st] = []
+                    matched = st
+                grouped[matched].append(n)
 
-                notes_in_interval = set()
-                for note_event in all_sustained_notes:
-                    # A note (s, e) is active in the interval [ts, te) 
-                    # if the note's own active period [s, e) overlaps with [ts, te).
-                    # Overlap condition: s < te and e > ts.
-                    # (Assuming note_event.end_time is exclusive end of sounding period)
-                    if note_event.start_time < interval_end_time and \
-                       note_event.end_time > interval_start_time:
-                        notes_in_interval.add(note_event.note_str)
-                
-                if notes_in_interval:
-                    chord_str = "+".join(sorted(list(notes_in_interval)))
-                    song_notes_list.append(f"{chord_str}:{interval_duration:.3f}")
-                else:
-                    # This interval is a rest
-                    song_notes_list.append(f"R:{interval_duration:.3f}")
-        elif all_sustained_notes and not time_points: # Should not happen if all_sustained_notes is populated
-             print("⚠️  Warning: Notes were extracted, but no time points were generated. Output might be empty or incorrect.")
-        elif all_sustained_notes and len(time_points) == 1: # e.g. all notes are instantaneous (duration 0)
-             print("⚠️  Warning: Only one time point generated for existing notes. Output might be empty or incorrect.")        # Determine output path
+            last_time = 0.0
+            for st in sorted(grouped.keys()):
+                if st - last_time > tolerance:
+                    song_notes_list.append(f"R:{st - last_time:.3f}")
+
+                notes_here = grouped[st]
+                chord = "+".join(sorted({n.note_str for n in notes_here}))
+                chord_duration = min(n.end_time for n in notes_here) - st
+                song_notes_list.append(f"{chord}:{chord_duration:.3f}")
+                last_time = st + chord_duration
+
+        else:
+            # Original behaviour - compute chords for every interval where the
+            # set of sounding notes changes.  This preserves sustain information
+            # but can result in large chords if many notes overlap.
+
+            # Find all unique time points where notes start or end
+            time_points = set()
+            for note_event in all_sustained_notes:  # Changed 'note' to 'note_event' for clarity
+                time_points.add(note_event.start_time)
+                time_points.add(note_event.end_time)
+
+            # Ensure 0.0 is a time point if there are notes and the earliest note doesn't start at 0.0
+            # This captures any initial rest.
+            if all_sustained_notes:
+                min_start_time = min(n.start_time for n in all_sustained_notes)
+                if min_start_time > 0.001:  # Using a small tolerance
+                    time_points.add(0.0)
+
+            time_points = sorted(list(time_points))
+
+            # Filter out very close time points to avoid micro-duration segments if any float precision issues occurred
+            if time_points:
+                unique_time_points = [time_points[0]]
+                for i in range(1, len(time_points)):
+                    if time_points[i] > time_points[i-1] + 0.0001:  # Tolerance for distinct points
+                        unique_time_points.append(time_points[i])
+                time_points = unique_time_points
+
+            if len(time_points) >= 2:  # Need at least two time points to form an interval
+                for i in range(len(time_points) - 1):
+                    interval_start_time = time_points[i]
+                    interval_end_time = time_points[i + 1]
+                    interval_duration = interval_end_time - interval_start_time
+
+                    # Skip zero or negligible duration intervals
+                    if interval_duration <= 0.001:
+                        continue
+
+                    notes_in_interval = set()
+                    for note_event in all_sustained_notes:
+                        # A note (s, e) is active in the interval [ts, te)
+                        # if the note's own active period [s, e) overlaps with [ts, te).
+                        # Overlap condition: s < te and e > ts.
+                        # (Assuming note_event.end_time is exclusive end of sounding period)
+                        if note_event.start_time < interval_end_time and \
+                           note_event.end_time > interval_start_time:
+                            notes_in_interval.add(note_event.note_str)
+
+                    if notes_in_interval:
+                        chord_str = "+".join(sorted(list(notes_in_interval)))
+                        song_notes_list.append(f"{chord_str}:{interval_duration:.3f}")
+                    else:
+                        # This interval is a rest
+                        song_notes_list.append(f"R:{interval_duration:.3f}")
+            elif all_sustained_notes and not time_points:  # Should not happen if all_sustained_notes is populated
+                print(
+                    "⚠️  Warning: Notes were extracted, but no time points were generated. Output might be empty or incorrect.")
+            elif all_sustained_notes and len(time_points) == 1:  # e.g. all notes are instantaneous (duration 0)
+                print(
+                    "⚠️  Warning: Only one time point generated for existing notes. Output might be empty or incorrect.")
         if output_path is None:
             base_name = os.path.splitext(os.path.basename(mxl_file_path))[0]
             output_path = os.path.join("songs", f"{base_name}.txt")
@@ -588,7 +632,7 @@ def convert_mxl_with_dual_clef(mxl_file_path, output_path=None, custom_tempo=Non
         traceback.print_exc()
         return False
 
-def batch_convert_all_mxl_files(directory=None, force_overwrite=False):
+def batch_convert_all_mxl_files(directory=None, force_overwrite=False, start_only=False):
     """Convert all MXL files in the directory to enhanced text format with dual clef support"""
     if directory is None:
         directory = r"c:\Users\domef\OneDrive\Desktop\HPMA_Piano\mxl"
@@ -616,6 +660,8 @@ def batch_convert_all_mxl_files(directory=None, force_overwrite=False):
     print(f"\n🚀 Starting batch conversion with dual clef handling...")
     print("=" * 60)
     
+    start_only_global = start_only
+
     for i, mxl_file in enumerate(mxl_files, 1):
         base_name = os.path.splitext(os.path.basename(mxl_file))[0]
         output_file = os.path.join(songs_dir, f"{base_name}.txt")
@@ -630,7 +676,7 @@ def batch_convert_all_mxl_files(directory=None, force_overwrite=False):
             continue
         
         # Convert the file
-        success = convert_mxl_with_dual_clef(mxl_file, output_file)
+        success = convert_mxl_with_dual_clef(mxl_file, output_file, start_only=start_only_global)
         
         if success:
             successful_conversions += 1
@@ -695,6 +741,9 @@ Examples:
     
     parser.add_argument('--verbose', '-v', action='store_true',
                        help='Enable verbose output')
+
+    parser.add_argument('--start-only', action='store_true',
+                        help='Simpler output using only note start events')
     
     return parser.parse_args()
 
@@ -707,8 +756,9 @@ if __name__ == "__main__":
             print("🎵 Enhanced MXL Batch Converter with Dual Clef Support")
             print("=" * 50)
             success = batch_convert_all_mxl_files(
-                directory=args.directory, 
-                force_overwrite=args.force
+                directory=args.directory,
+                force_overwrite=args.force,
+                start_only=args.start_only,
             )
             sys.exit(0 if success else 1)
         elif args.interactive or (not args.input_file and not args.batch_convert):
@@ -742,7 +792,13 @@ if __name__ == "__main__":
             
             # Step 5: Convert with selected values
             print(f"\n🔄 Converting with tempo: {custom_tempo} BPM and time signature: {custom_time_signature}")
-            success = convert_mxl_with_dual_clef(mxl_file_to_convert, args.output_file, custom_tempo, custom_time_signature)
+            success = convert_mxl_with_dual_clef(
+                mxl_file_to_convert,
+                args.output_file,
+                custom_tempo,
+                custom_time_signature,
+                start_only=args.start_only,
+            )
             sys.exit(0 if success else 1)
         
         elif args.input_file:
@@ -753,7 +809,11 @@ if __name__ == "__main__":
             
             print("🎵 Enhanced MXL Converter with Dual Clef Support")
             print("=" * 30)
-            success = convert_mxl_with_dual_clef(args.input_file, args.output_file)
+            success = convert_mxl_with_dual_clef(
+                args.input_file,
+                args.output_file,
+                start_only=args.start_only,
+            )
             sys.exit(0 if success else 1)
         else:
             # This shouldn't happen but fallback to interactive mode
@@ -781,7 +841,13 @@ if __name__ == "__main__":
             custom_time_signature = get_custom_time_signature(original_time_signature)
             
             print(f"\n🔄 Converting with tempo: {custom_tempo} BPM and time signature: {custom_time_signature}")
-            success = convert_mxl_with_dual_clef(mxl_file_to_convert, args.output_file, custom_tempo, custom_time_signature)
+            success = convert_mxl_with_dual_clef(
+                mxl_file_to_convert,
+                args.output_file,
+                custom_tempo,
+                custom_time_signature,
+                start_only=args.start_only,
+            )
             sys.exit(0 if success else 1)
             
     except KeyboardInterrupt:
