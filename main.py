@@ -17,6 +17,64 @@ from typing import List, Dict, Set, Tuple, Optional
 from music21 import converter, note, chord, meter, tempo, key, dynamics, expressions, clef, stream
 
 from table_utils import SONGS_DIR, print_table
+from enhanced_music_player import EnhancedMusicPlayer
+from music_file_parser import parse_music_file
+from convert_mxl_dual_clef import extract_musical_metadata
+
+
+def has_musical_metadata(file_path: str) -> bool:
+    """Simple check to see if a song file contains musical metadata headers."""
+    try:
+        with open(file_path, "r", encoding="utf-8") as f:
+            for line in f:
+                if line.startswith(
+                    (
+                        "Time_Signature:",
+                        "Musical_Feel:",
+                        "Key_Signature:",
+                        "Original_BPM:",
+                        "Tempo_Marking:",
+                        "Expression:",
+                        "Initial_Dynamic:",
+                    )
+                ):
+                    return True
+    except Exception:
+        pass
+    return False
+
+
+def list_and_select_song(directory: str = SONGS_DIR):
+    """List available .txt songs in the songs directory and prompt user to choose.
+
+    Returns the path to the selected song or ``None`` if the user quits or no
+    songs exist.
+    """
+    if not os.path.isdir(directory):
+        print(f"Songs directory not found: {directory}")
+        return None
+
+    song_files = [f for f in sorted(os.listdir(directory)) if f.lower().endswith('.txt')]
+    if not song_files:
+        print(f"No song files found in '{directory}'.")
+        return None
+
+    rows = [[i + 1, name] for i, name in enumerate(song_files)]
+    print(f"\n--- Available Songs in '{directory}' ---")
+    print_table(["No.", "Song Name"], rows)
+
+    while True:
+        choice = input("Enter the number of the song to play (or 'q' to quit): ").strip().lower()
+        if choice == 'q':
+            return None
+        try:
+            index = int(choice) - 1
+            if 0 <= index < len(song_files):
+                return os.path.join(directory, song_files[index])
+            else:
+                print("Invalid number. Please try again.")
+        except ValueError:
+            print("Invalid input. Please enter a number or 'q'.")
 
 def list_and_select_mxl_file(directory=None):
     """
@@ -60,14 +118,15 @@ def list_and_select_mxl_file(directory=None):
 
 
     while True:
-        choice = input("Enter the number of the song to play (or 'q' to quit): ").strip().lower()
+        choice = input("Enter the number of the MXL file to convert (or 'q' to quit): ").strip().lower()
         if choice == 'q':
             return None
         try:
-            song_index = int(choice) - 1
-            if 0 <= song_index < len(available_files):
-                selected_filename = available_files[song_index]
-                return os.path.join(SONGS_DIR, selected_filename)
+            file_index = int(choice) - 1
+            if 0 <= file_index < len(mxl_files):
+                selected_file = mxl_files[file_index]
+                print(f"✓ Selected: {os.path.basename(selected_file)}")
+                return selected_file
             else:
                 print("Invalid number. Please try again.")
         except ValueError:
