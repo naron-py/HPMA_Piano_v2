@@ -1,4 +1,4 @@
-Generated_from:c:\Users\domef\OneDrive\Desktop\HPMA_Piano\Blue_Bird_Naruto_Shippuden_-_Ikimono-gakari.mxl
+Generated_from:c:\Users\domef\OneDrive\Desktop\HPMA_Piano\mxl\Blue_Bird_Naruto_Shippuden_-_Ikimono-gakari.mxl
 Total_notes:380
 Time_Signature:4/4
 Musical_Feel:common_time
