@@ -1,92 +1,63 @@
-# main.py
+#!/usr/bin/env python3
+# convert_mxl_dual_clef.py - Convert MXL to text with improved handling of treble and bass clefs
+#
+# Key improvements:
+# 1. Explicitly handles both treble and bass clefs (dual-staff piano music)
+# 2. Properly combines notes from both clefs into a unified timeline
+# 3. Preserves proper sustain of notes while other melody notes are played
+# 4. Maintains overlapping notes and chords like a real piano performance
+# 5. Preserves musical information including tempo, key signature, and time signature
 
 import os
 import sys
+import argparse
+import glob
+from dataclasses import dataclass
+from typing import List, Dict, Set, Tuple, Optional
+from music21 import converter, note, chord, meter, tempo, key, dynamics, expressions, clef, stream
 
-# Check for required dependencies
-try:
-    import pyautogui
-    import music21
-    print("✓ Required dependencies found")
-except ImportError as e:
-    print(f"❌ Missing required dependency: {e}")
-    print("Please install with: pip install pyautogui music21")
-    sys.exit(1)
-
-from enhanced_music_player import EnhancedMusicPlayer
-from music_file_parser import parse_music_file
 from table_utils import SONGS_DIR, print_table
 
-
-
-
-def _get_song_metadata(file_path):
-    """Extract tempo and time signature from a song text file."""
-    tempo = "?"
-    time_sig = "?"
-    try:
-        with open(file_path, "r", encoding="utf-8") as f:
-            for _ in range(20):
-                line = f.readline()
-                if not line:
-                    break
-                if line.startswith("Original_BPM:"):
-                    tempo = line.split(":", 1)[1].strip()
-                elif line.startswith("Time_Signature:"):
-                    time_sig = line.split(":", 1)[1].strip()
-                if tempo != "?" and time_sig != "?":
-                    break
-    except Exception:
-        pass
-    return tempo, time_sig
-
-# SONGS_DIR constant imported from table_utils
-def has_musical_metadata(file_path):
-    """Check if the given text file contains musical metadata headers."""
-    try:
-        with open(file_path, "r", encoding="utf-8") as f:
-            for _ in range(10):
-                line = f.readline()
-                if not line:
-                    break
-                if line.startswith(("Time_Signature:", "Musical_Feel:", "Original_BPM:")):
-                    return True
-    except Exception:
-        pass
-    return False
-
-def list_and_select_song():
+def list_and_select_mxl_file(directory=None):
     """
-    Scans the SONGS_DIR, lists available .txt song files,
-    and prompts the user to select one.
-    Returns the full path to the selected song file or None.
+    Scans the directory for MXL files, lists them, and prompts user to select one.
+    Returns the full path to the selected MXL file or None.
     """
-    print(f"\n--- Available Songs in '{SONGS_DIR}/' ---")
-    available_files = []
+    if directory is None:
+        directory = r"c:\Users\domef\OneDrive\Desktop\HPMA_Piano\mxl"
+    
+    print(f"\n--- Available MXL Files in '{directory}' ---")
 
-    # Create the songs directory if it doesn't exist
-    if not os.path.exists(SONGS_DIR):
-        os.makedirs(SONGS_DIR)
-        print(f"'{SONGS_DIR}/' directory created. Please place your song .txt files here.")
-        return None
+    # Find all MXL files
+    mxl_pattern = os.path.join(directory, "*.mxl")
+    mxl_files = sorted(glob.glob(mxl_pattern))
 
-    # Collect all .txt files in the songs directory
-    for filename in os.listdir(SONGS_DIR):
-        if filename.lower().endswith(".txt"):
-            available_files.append(filename)
-
-    available_files = sorted(available_files)
-
-    if not available_files:
-        print(f"No .txt song files found in '{SONGS_DIR}/'.")
+    if not mxl_files:
+        print(f"No .mxl files found in '{directory}'.")
         return None
 
     rows = []
-    for i, song_name in enumerate(available_files, 1):
-        bpm, ts = _get_song_metadata(os.path.join(SONGS_DIR, song_name))
-        rows.append([i, song_name, bpm, ts])
+    songs_dir = SONGS_DIR
 
-    print_table(["No.", "Song Name", "BPM", "Time Sig"], rows)
+    for i, mxl_file in enumerate(mxl_files, 1):
+        filename = os.path.basename(mxl_file)
+        bpm = "?"
+        ts = "?"
+        try:
+            score = converter.parse(mxl_file)
+            meta = extract_musical_metadata(score)
+            bpm = meta.get("tempo_bpm", "?")
+            ts = meta.get("time_signature", "?")
+        except Exception:
+            pass
+
+        txt_name = os.path.splitext(filename)[0] + ".txt"
+        txt_path = os.path.join(songs_dir, txt_name)
+        exists = "Yes" if os.path.exists(txt_path) else "No"
+        rows.append([i, filename, bpm, ts, exists])
+
+    print_table(["No.", "Song Name", "BPM", "Time Sig", "Converted"], rows)
+
 
     while True:
         choice = input("Enter the number of the song to play (or 'q' to quit): ").strip().lower()
