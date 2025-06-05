@@ -15,8 +15,6 @@ except ImportError as e:
 
 from enhanced_music_player import EnhancedMusicPlayer
 from music_file_parser import parse_music_file
-# Add import for play_separated functionality
-from play_separated import play_separated_part
 
 # Define the directory where your song .txt files will be stored
 SONGS_DIR = "songs"
@@ -62,40 +60,6 @@ def list_and_select_song():
                 print("Invalid number. Please try again.")
         except ValueError:
             print("Invalid input. Please enter a number or 'q'.")
-
-def has_melody_separation(file_path):
-    """
-    Check if the song file has melody and accompaniment separated.
-    Returns True if the file contains both melody and accompaniment parts.
-    """
-    if not os.path.exists(file_path):
-        return False
-        
-    try:
-        with open(file_path, 'r', encoding='utf-8') as f:
-            lines = f.readlines()
-            
-        # Check for melody separation in the metadata
-        has_separation_metadata = False
-        for line in lines[:20]:  # Check only the header part
-            if line.strip() == "Melody_Separation:True":
-                has_separation_metadata = True
-                break
-        
-        # Check for actual section markers
-        has_melody_marker = False
-        has_accomp_marker = False
-        for line in lines:
-            if line.strip() == "# MELODY PART":
-                has_melody_marker = True
-            elif line.strip() == "# ACCOMPANIMENT PART":
-                has_accomp_marker = True
-            if has_melody_marker and has_accomp_marker:
-                return True
-                
-        return has_separation_metadata and (has_melody_marker or has_accomp_marker)
-    except Exception:
-        return False
 
 def main():
     print("Welcome to the Auto Piano Player!")
@@ -189,34 +153,6 @@ def main():
         preview_notes = playable_notes[:5] if playable_notes else ["No playable notes found"]
         print(f"\n📋 Preview of first few notes: {preview_notes}...")
         
-        # Check if the song has melody separation
-        has_separation = has_melody_separation(source_file_path)
-        if has_separation:
-            print("\n🎵 This song has melody and accompaniment separated!")
-            playback_option = input("Do you want to play (1) melody only, (2) accompaniment only, (3) both parts, or (4) standard playback? ")
-            
-            if playback_option in ('1', '2', '3'):
-                # Set the part based on user selection
-                part_to_play = {
-                    '1': 'melody',
-                    '2': 'accompaniment',
-                    '3': 'both'
-                }[playback_option]
-                
-                # Get tempo factor
-                tempo_str = input("Enter tempo factor (1.0 = normal speed, 0.5 = half speed, etc.): ")
-                try:
-                    tempo_factor = float(tempo_str) if tempo_str.strip() else 1.0
-                except ValueError:
-                    tempo_factor = 1.0
-                    print("Invalid tempo factor. Using default: 1.0")
-                
-                print(f"🎵 Playing {part_to_play} part(s) at tempo factor {tempo_factor}...")
-                play_separated_part(source_file_path, part=part_to_play, tempo_factor=tempo_factor)
-                return
-            
-            # If user chose option 4 or any other input, continue with standard playback
-            print("Continuing with standard playback...")
           
         # Create the player instance first
         player = EnhancedMusicPlayer()
