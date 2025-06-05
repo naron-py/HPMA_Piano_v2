@@ -1,0 +1,2 @@
+pyautogui>=0.9.54
+music21>=9.7.0
