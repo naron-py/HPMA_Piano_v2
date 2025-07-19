@@ -1,6 +1,7 @@
 import os
-# This line was likely missing from your file
-from console_menu import ConsoleMenu, MenuItem
+# Use the `consolemenu` package for interactive CLI menus
+from consolemenu import ConsoleMenu
+from consolemenu.items import MenuItem
 import converter
 import player
 
@@ -8,7 +9,8 @@ import player
 # Directory where your final .txt song files are stored
 SONGS_DIR = "songs"
 # Directory where your source .mid and .mxl files are located
-SOURCE_FILES_DIR = r"C:\Users\domef\OneDrive\Desktop\HPMA_Piano_v2\source_files"
+# Default to the local `source_files` folder so the project works cross-platform
+SOURCE_FILES_DIR = "source_files"
 
 def create_songs_directory():
     """Creates the 'songs' directory if it doesn't already exist."""
