@@ -1,6 +1,30 @@
 # player.py
 
-import pyautogui
+"""Handle playback by automating key presses with ``pyautogui``.
+
+If ``pyautogui`` cannot be initialized (e.g. running in a headless
+environment without a display), we fall back to a mock implementation so
+the rest of the program can still run for testing purposes.
+"""
+
+try:
+    import pyautogui
+except Exception as exc:  # pragma: no cover - defensive import
+    print(f"Warning: pyautogui could not be loaded ({exc}). Using mock mode.")
+
+    class _MockPyAutoGUI:
+        """Minimal mock of pyautogui used when no GUI is available."""
+
+        FAILSAFE = False
+
+        def press(self, key):
+            print(f"[MOCK press] {key}")
+
+        def hotkey(self, *keys):
+            joined = ", ".join(keys)
+            print(f"[MOCK hotkey] {joined}")
+
+    pyautogui = _MockPyAutoGUI()
 import time
 from key_mapper import NOTE_TO_KEY
 
