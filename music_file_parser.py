@@ -80,14 +80,18 @@ def parse_music_file(file_path, manual_tempo=None, min_duration=0.0):
             end = time_points[i + 1]
             dur = end - start
             if dur <= 0 or dur < min_duration:
+
+            rounded = round(dur, 3)
+            if rounded <= 0:
+
                 continue
 
             active = {e[0] for e in events if e[1] < end and e[2] > start}
             if active:
                 chord_str = "+".join(sorted(active))
-                song_notes.append(f"{chord_str}:{dur:.3f}")
+                song_notes.append(f"{chord_str}:{rounded:.3f}")
             else:
-                song_notes.append(f"R:{dur:.3f}")
+                song_notes.append(f"R:{rounded:.3f}")
 
         print("✅ Processing complete!")
         print(f"   Notes generated: {len(song_notes)}")
