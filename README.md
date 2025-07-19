@@ -73,6 +73,9 @@ lua mxl_to_lua.lua song.txt song.lua
 - `-v`, `--verbose` – extra debug output
 - `--start-only` – output only note-on events for simpler exports
 
+### `convert_to_lua.py` Options
+- `--min-duration` – ignore generated notes/rests shorter than this many seconds
+
 ### Option 2: Play Existing Songs
 ```bash
 # Run the main player

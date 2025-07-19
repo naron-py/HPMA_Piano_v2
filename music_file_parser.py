@@ -6,13 +6,13 @@ from key_mapper import convert_standard_note_to_custom
 TEMPO_BPM = 98
 
 
-def parse_music_file(file_path, manual_tempo=None):
+def parse_music_file(file_path, manual_tempo=None, min_duration=0.0):
     """Parse a MusicXML/MIDI file into a list of playable note strings.
 
     Notes sounding at the same time are combined into chords. Durations are
     calculated using the note lengths and the tempo found in the score. If no
     tempo marking exists, the user is prompted to provide one or the default is
-    used.
+    used. Intervals shorter than ``min_duration`` are skipped.
     """
     song_notes = []
     try:
@@ -50,6 +50,10 @@ def parse_music_file(file_path, manual_tempo=None):
                 start = offset * qdur
                 dur = el.duration.quarterLength * qdur
                 end = start + dur
+
+                if dur < min_duration:
+                    continue
+
                 time_points.add(start)
                 time_points.add(end)
 
@@ -75,8 +79,11 @@ def parse_music_file(file_path, manual_tempo=None):
             start = time_points[i]
             end = time_points[i + 1]
             dur = end - start
+            if dur <= 0 or dur < min_duration:
+
             rounded = round(dur, 3)
             if rounded <= 0:
+
                 continue
 
             active = {e[0] for e in events if e[1] < end and e[2] > start}

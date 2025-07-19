@@ -71,8 +71,24 @@ def prompt_yes_no(message: str) -> bool:
         print("Please enter 'y' or 'n'.")
 
 
-def convert_file_to_lua(file_path, output_file=None, detect_bpm=False, hold_notes=False):
-    """Convert ``file_path`` to Lua script and save to ``output_file``."""
+def convert_file_to_lua(
+    file_path, output_file=None, detect_bpm=False, hold_notes=False, min_duration=0.0
+):
+    """Convert ``file_path`` to Lua script and save to ``output_file``.
+
+    Parameters
+    ----------
+    file_path : str
+        Path to the input music file.
+    output_file : str or None, optional
+        Destination for the Lua script. If ``None``, prints to stdout.
+    detect_bpm : bool, optional
+        Whether to detect tempo from the file.
+    hold_notes : bool, optional
+        Use the original note durations instead of a fixed keypress length.
+    min_duration : float, optional
+        Ignore generated notes/rests shorter than this many seconds.
+    """
     score = converter.parse(file_path)
     title = score.metadata.title if score.metadata and score.metadata.title else os.path.basename(file_path)
 
@@ -89,7 +105,7 @@ def convert_file_to_lua(file_path, output_file=None, detect_bpm=False, hold_note
         except Exception:
             bpm = DEFAULT_BPM
 
-    notes = parse_music_file(file_path, manual_tempo=bpm)
+    notes = parse_music_file(file_path, manual_tempo=bpm, min_duration=min_duration)
     if not notes:
         print("No playable notes extracted.")
         return False
@@ -133,6 +149,12 @@ def main():
     parser.add_argument("-d", "--directory", default=DEFAULT_MUSIC_DIR, help="Directory containing music files")
     parser.add_argument("--detect-bpm", action="store_true", help="Use tempo from file if available")
     parser.add_argument("--hold-notes", action="store_true", help="Preserve note durations")
+    parser.add_argument(
+        "--min-duration",
+        type=float,
+        default=0.0,
+        help="Ignore notes shorter than this many seconds",
+    )
     args = parser.parse_args()
 
     file_path = args.file
@@ -152,7 +174,13 @@ def main():
         output = base + ".lua"
 
     if file_path:
-        convert_file_to_lua(file_path, output, detect_bpm=args.detect_bpm, hold_notes=args.hold_notes)
+        convert_file_to_lua(
+            file_path,
+            output,
+            detect_bpm=args.detect_bpm,
+            hold_notes=args.hold_notes,
+            min_duration=args.min_duration,
+        )
 
 
 if __name__ == "__main__":
