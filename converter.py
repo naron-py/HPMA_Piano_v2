@@ -32,8 +32,15 @@ def get_hand(element):
     return ""
 
 def shift_pitch_to_range(p):
-    """Shift a ``music21.pitch.Pitch`` into the supported C3-B5 range."""
-    p = pitch.Pitch(p)
+    """Shift a pitch into the supported C3-B5 range."""
+    # ``p`` can be a pitch.Pitch instance or a string/MIDI number. ``music21``
+    # does not allow constructing ``Pitch`` with another ``Pitch`` directly, so
+    # we clone when necessary.
+    if isinstance(p, pitch.Pitch):
+        p = pitch.Pitch(p.nameWithOctave)
+    else:
+        p = pitch.Pitch(p)
+
     while p.octave < 3:
         p.octave += 1
     while p.octave > 5:
