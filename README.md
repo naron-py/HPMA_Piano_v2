@@ -140,10 +140,12 @@ Adjust `STANDARD_OCTAVE_TO_CUSTOM_OCTAVE` in `key_mapper.py` if needed:
 ```python
 STANDARD_OCTAVE_TO_CUSTOM_OCTAVE = {
     3: 1,  # C3-B3 → Low octave
-    4: 2,  # C4-B4 → Middle octave  
+    4: 2,  # C4-B4 → Middle octave
     5: 3,  # C5-B5 → High octave
 }
 ```
+Notes that fall outside these three octaves are automatically shifted to the
+nearest supported octave when converting files.
 
 ## 🎮 Gaming Tips
 

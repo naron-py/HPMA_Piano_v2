@@ -1,7 +1,7 @@
 # converter.py
 
 import os
-from music21 import converter, note, chord, stream, instrument
+from music21 import converter, note, chord, stream, instrument, pitch
 
 # The pitch 'C4' is often considered the dividing line between hands in simple piano music.
 # This is a heuristic and may not be accurate for all pieces.
@@ -30,6 +30,15 @@ def get_hand(element):
         else:
             return "LH"
     return ""
+
+def shift_pitch_to_range(p):
+    """Shift a ``music21.pitch.Pitch`` into the supported C3-B5 range."""
+    p = pitch.Pitch(p)
+    while p.octave < 3:
+        p.octave += 1
+    while p.octave > 5:
+        p.octave -= 1
+    return p
 
 def parse_file(file_path):
     """
@@ -93,13 +102,15 @@ def parse_file(file_path):
         
         # Format the line based on the element type
         if isinstance(element, note.Note):
-            pitch_name = element.pitch.nameWithOctave
+            shifted = shift_pitch_to_range(element.pitch)
+            pitch_name = shifted.nameWithOctave
             duration = element.duration.quarterLength
             song_data.append(f"{hand}:{pitch_name}:{duration}")
             
         elif isinstance(element, chord.Chord):
             # Join all note names in the chord with a hyphen
-            pitch_names = "-".join(p.nameWithOctave for p in element.pitches)
+            shifted = [shift_pitch_to_range(p) for p in element.pitches]
+            pitch_names = "-".join(p.nameWithOctave for p in shifted)
             duration = element.duration.quarterLength
             song_data.append(f"{hand}:{pitch_names}:{duration}")
 
