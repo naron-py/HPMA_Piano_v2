@@ -19,6 +19,7 @@ from music21 import converter, note, chord, meter, tempo, key, dynamics, express
 from table_utils import SONGS_DIR, print_table
 from enhanced_music_player import EnhancedMusicPlayer
 from music_file_parser import parse_music_file
+from convert_to_lua import convert_file_to_lua
 from convert_mxl_dual_clef import extract_musical_metadata
 
 
@@ -185,7 +186,9 @@ def main():
                     base_name = os.path.basename(source_file_path)
                     suggested_name = os.path.splitext(base_name)[0] + ".txt"
 
-                    save_choice = input(f"💾 Save this parsed song to '{os.path.join(SONGS_DIR, suggested_name)}' for future use? (y/n): ").strip().lower()
+                    save_choice = input(
+                        f"💾 Save this parsed song to '{os.path.join(SONGS_DIR, suggested_name)}' for future use? (y/n): "
+                    ).strip().lower()
                     if save_choice == 'y':
                         save_path = os.path.join(SONGS_DIR, suggested_name)
                         try:
@@ -197,6 +200,10 @@ def main():
                                 for note_line in extracted_notes:
                                     f.write(note_line + "\n")
                             print(f"✓ Song saved to '{save_path}'. You can select it next time.")
+
+                            lua_path = os.path.join(SONGS_DIR, os.path.splitext(suggested_name)[0] + ".lua")
+                            if convert_file_to_lua(source_file_path, lua_path, detect_bpm=True, hold_notes=True):
+                                print(f"✓ Lua script saved to '{lua_path}'.")
                         except Exception as e:
                             print(f"❌ Error saving song to '{save_path}': {e}")
                     song_to_play = extracted_notes
