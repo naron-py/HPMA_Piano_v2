@@ -310,13 +310,14 @@ def identify_clef_type(element, metadata, part_idx):
     # Default to treble if we can't determine
     return "treble"
 
-def extract_note_from_element(element, start_time, quarter_note_duration, metadata, beat_position, part_idx, voice_id=None):
+def extract_note_from_element(element, start_time, quarter_note_duration, metadata, beat_position, part_idx, voice_id=None, verbose=False):
     """Extract SustainedNote objects from a music21 element"""
     from key_mapper import convert_standard_note_to_custom
     
     sustained_notes = []
     # ---- START DEBUG ----
-    print(f"DEBUG: Processing element: {element}, offset: {element.offset}, duration qL: {element.duration.quarterLength if hasattr(element, 'duration') else 'N/A'}")
+    if verbose:
+        print(f"DEBUG: Processing element: {element}, offset: {element.offset}, duration qL: {element.duration.quarterLength if hasattr(element, 'duration') else 'N/A'}")
     # if hasattr(element, 'pitch'):
     #     print(f"DEBUG: Element is Note: {element.pitch}")
     # elif hasattr(element, 'pitches'):
@@ -391,7 +392,7 @@ def extract_note_from_element(element, start_time, quarter_note_duration, metada
     
     return sustained_notes
 
-def convert_mxl_with_dual_clef(mxl_file_path, output_path=None, custom_tempo=None, custom_time_signature=None, start_only=False):
+def convert_mxl_with_dual_clef(mxl_file_path, output_path=None, custom_tempo=None, custom_time_signature=None, start_only=False, verbose=False):
     """Convert MXL to text format preserving both treble and bass clef information.
 
     If ``start_only`` is True only notes starting at the same time are grouped
@@ -404,8 +405,9 @@ def convert_mxl_with_dual_clef(mxl_file_path, output_path=None, custom_tempo=Non
     if not os.path.exists(mxl_file_path):
         print(f"❌ Error: File '{mxl_file_path}' not found.")
         return False
-    
-    print(f"Converting '{mxl_file_path}' with improved dual clef handling...")
+
+    if verbose:
+        print(f"Converting '{mxl_file_path}' with improved dual clef handling...")
     
     try:
         score = converter.parse(mxl_file_path)
@@ -427,25 +429,26 @@ def convert_mxl_with_dual_clef(mxl_file_path, output_path=None, custom_tempo=Non
             metadata['feel'] = determine_musical_feel(int(numerator), int(denominator))
         
         # Display analysis with custom values if any
-        if custom_tempo is not None or custom_time_signature is not None:
-            print(f"📊 Musical Analysis (Custom Values):")
-        else:
-            print(f"📊 Musical Analysis:")
-        
-        print(f"   Time Signature: {metadata['time_signature']} ({metadata['feel']})")
-        print(f"   Key: {metadata['key_signature']}")
-        print(f"   Tempo: {metadata['tempo_bpm']} BPM")
-        
-        num_parts = metadata['num_parts']
-        print(f"   Parts/Staves: {num_parts}")
-        
-        if 'clef_analysis' in metadata:
-            print(f"   Clef Analysis:")
-            for part_idx, clef_info in metadata['clef_analysis'].items():
-                print(f"      Part {part_idx+1}: {clef_info['name']}")
-        
-        if 'expression' in metadata:
-            print(f"   Expression: {metadata['expression']}")
+        if verbose:
+            if custom_tempo is not None or custom_time_signature is not None:
+                print(f"📊 Musical Analysis (Custom Values):")
+            else:
+                print(f"📊 Musical Analysis:")
+
+            print(f"   Time Signature: {metadata['time_signature']} ({metadata['feel']})")
+            print(f"   Key: {metadata['key_signature']}")
+            print(f"   Tempo: {metadata['tempo_bpm']} BPM")
+
+            num_parts = metadata['num_parts']
+            print(f"   Parts/Staves: {num_parts}")
+
+            if 'clef_analysis' in metadata:
+                print(f"   Clef Analysis:")
+                for part_idx, clef_info in metadata['clef_analysis'].items():
+                    print(f"      Part {part_idx+1}: {clef_info['name']}")
+
+            if 'expression' in metadata:
+                print(f"   Expression: {metadata['expression']}")
         
         # Calculate timing based on actual tempo
         quarter_note_duration = 60.0 / metadata['tempo_bpm']
@@ -459,13 +462,15 @@ def convert_mxl_with_dual_clef(mxl_file_path, output_path=None, custom_tempo=Non
 
         for part_idx, part in enumerate(score.parts):
             # ---- START DEBUG VIVA ----
-            print(f"DEBUG_VIVA: Processing Part {part_idx} (ID: {part.id if hasattr(part, 'id') else 'N/A'}, Class: {part.__class__.__name__})")
+            if verbose:
+                print(f"DEBUG_VIVA: Processing Part {part_idx} (ID: {part.id if hasattr(part, 'id') else 'N/A'}, Class: {part.__class__.__name__})")
             # ---- END DEBUG VIVA ----
             
             part_elements = part.flatten().notesAndRests # Get all notes and rests from the part directly
             
             # ---- START DEBUG VIVA ----
-            print(f"DEBUG_VIVA: Part {part_idx} - Found {len(part_elements)} notesAndRests directly from part.flatten().")
+            if verbose:
+                print(f"DEBUG_VIVA: Part {part_idx} - Found {len(part_elements)} notesAndRests directly from part.flatten().")
             max_offset_in_part = 0.0
             if part_elements:
                 # Get the last element to check its offset and duration to estimate part length
@@ -473,7 +478,8 @@ def convert_mxl_with_dual_clef(mxl_file_path, output_path=None, custom_tempo=Non
                 max_offset_in_part = float(last_el.offset)
                 if hasattr(last_el, 'duration') and last_el.duration:
                     max_offset_in_part += float(last_el.duration.quarterLength)
-            print(f"DEBUG_VIVA: Part {part_idx} - Estimated max quarterLength offset in part: {max_offset_in_part}")
+            if verbose:
+                print(f"DEBUG_VIVA: Part {part_idx} - Estimated max quarterLength offset in part: {max_offset_in_part}")
             # ---- END DEBUG VIVA ----
 
             for element_idx, element in enumerate(part_elements):
@@ -487,30 +493,32 @@ def convert_mxl_with_dual_clef(mxl_file_path, output_path=None, custom_tempo=Non
                 else:
                     # Extract notes from this element
                     sustained_notes = extract_note_from_element(
-                        element, 
-                        start_time, 
-                        quarter_note_duration, 
-                        metadata, 
-                        beat_position, 
-                        part_idx, 
-                        voice_id=None # Passing None for voice_id as we are not iterating explicit voices here
+                        element,
+                        start_time,
+                        quarter_note_duration,
+                        metadata,
+                        beat_position,
+                        part_idx,
+                        voice_id=None,  # Passing None for voice_id as we are not iterating explicit voices here
+                        verbose=verbose
                     )
                     all_sustained_notes.extend(sustained_notes)
         
         if not all_sustained_notes:
             print("⚠️  No valid notes found in the score.")
             return False
-        
+
         # ---- START NEW DEBUG ----
-        print(f"DEBUG: Total SustainedNote objects collected: {len(all_sustained_notes)}")
-        if all_sustained_notes:
-            print("DEBUG: First 5 SustainedNote objects:")
-            for i, sn in enumerate(all_sustained_notes[:5]):
-                print(f"  {i}: {sn}")
-            if len(all_sustained_notes) > 5:
-                print("DEBUG: Last 5 SustainedNote objects:")
-                for i, sn in enumerate(all_sustained_notes[-5:]):
-                    print(f"  {len(all_sustained_notes) - 5 + i}: {sn}")
+        if verbose:
+            print(f"DEBUG: Total SustainedNote objects collected: {len(all_sustained_notes)}")
+            if all_sustained_notes:
+                print("DEBUG: First 5 SustainedNote objects:")
+                for i, sn in enumerate(all_sustained_notes[:5]):
+                    print(f"  {i}: {sn}")
+                if len(all_sustained_notes) > 5:
+                    print("DEBUG: Last 5 SustainedNote objects:")
+                    for i, sn in enumerate(all_sustained_notes[-5:]):
+                        print(f"  {len(all_sustained_notes) - 5 + i}: {sn}")
         # ---- END NEW DEBUG ----
 
         song_notes_list = []
@@ -638,20 +646,22 @@ def convert_mxl_with_dual_clef(mxl_file_path, output_path=None, custom_tempo=Non
             for note_line in song_notes_list:
                 f.write(note_line + "\n")
         
-        print(f"✅ Enhanced conversion complete with dual clef support!")
-        print(f"   Output: {output_path}")
-        print(f"   Notes: {len(song_notes_list)}")
-        print(f"   Preserved: Note sustain, both clefs, overlapping notes, time signature, key, tempo")
+        if verbose:
+            print(f"✅ Enhanced conversion complete with dual clef support!")
+            print(f"   Output: {output_path}")
+            print(f"   Notes: {len(song_notes_list)}")
+            print(f"   Preserved: Note sustain, both clefs, overlapping notes, time signature, key, tempo")
         
         return True
         
     except Exception as e:
         print(f"❌ Error during conversion: {e}")
-        import traceback
-        traceback.print_exc()
+        if verbose:
+            import traceback
+            traceback.print_exc()
         return False
 
-def batch_convert_all_mxl_files(directory=None, force_overwrite=False, start_only=False):
+def batch_convert_all_mxl_files(directory=None, force_overwrite=False, start_only=False, verbose=False):
     """Convert all MXL files in the directory to enhanced text format with dual clef support"""
     if directory is None:
         directory = r"c:\Users\domef\OneDrive\Desktop\HPMA_Piano\mxl"
@@ -663,10 +673,11 @@ def batch_convert_all_mxl_files(directory=None, force_overwrite=False, start_onl
     if not mxl_files:
         print(f"❌ No MXL files found in: {directory}")
         return False
-    
-    print(f"🎵 Found {len(mxl_files)} MXL files for batch conversion:")
-    for i, file in enumerate(mxl_files, 1):
-        print(f"   {i}. {os.path.basename(file)}")
+
+    if verbose:
+        print(f"🎵 Found {len(mxl_files)} MXL files for batch conversion:")
+        for i, file in enumerate(mxl_files, 1):
+            print(f"   {i}. {os.path.basename(file)}")
     
     # Ensure songs directory exists
     songs_dir = os.path.join(directory, "songs")
@@ -676,8 +687,9 @@ def batch_convert_all_mxl_files(directory=None, force_overwrite=False, start_onl
     failed_conversions = 0
     skipped_conversions = 0
     
-    print(f"\n🚀 Starting batch conversion with dual clef handling...")
-    print("=" * 60)
+    if verbose:
+        print(f"\n🚀 Starting batch conversion with dual clef handling...")
+        print("=" * 60)
     
     start_only_global = start_only
 
@@ -685,36 +697,41 @@ def batch_convert_all_mxl_files(directory=None, force_overwrite=False, start_onl
         base_name = os.path.splitext(os.path.basename(mxl_file))[0]
         output_file = os.path.join(songs_dir, f"{base_name}.txt")
         
-        print(f"\n[{i}/{len(mxl_files)}] Processing: {os.path.basename(mxl_file)}")
+        if verbose:
+            print(f"\n[{i}/{len(mxl_files)}] Processing: {os.path.basename(mxl_file)}")
         
         # Check if output already exists
         if os.path.exists(output_file) and not force_overwrite:
-            print(f"⏭️  Skipping: {os.path.basename(output_file)} already exists")
-            print(f"   Use --force to overwrite existing files")
+            if verbose:
+                print(f"⏭️  Skipping: {os.path.basename(output_file)} already exists")
+                print(f"   Use --force to overwrite existing files")
             skipped_conversions += 1
             continue
         
         # Convert the file
-        success = convert_mxl_with_dual_clef(mxl_file, output_file, start_only=start_only_global)
+        success = convert_mxl_with_dual_clef(mxl_file, output_file, start_only=start_only_global, verbose=verbose)
         
         if success:
             successful_conversions += 1
-            print(f"✅ Successfully converted: {os.path.basename(output_file)}")
+            if verbose:
+                print(f"✅ Successfully converted: {os.path.basename(output_file)}")
         else:
             failed_conversions += 1
-            print(f"❌ Failed to convert: {os.path.basename(mxl_file)}")
+            if verbose:
+                print(f"❌ Failed to convert: {os.path.basename(mxl_file)}")
     
     # Summary report
-    print("\n" + "=" * 60)
-    print(f"📊 BATCH CONVERSION SUMMARY:")
-    print(f"   Total MXL files found: {len(mxl_files)}")
-    print(f"   ✅ Successfully converted: {successful_conversions}")
-    print(f"   ❌ Failed conversions: {failed_conversions}")
-    print(f"   ⏭️  Skipped (already exist): {skipped_conversions}")
-    
-    if successful_conversions > 0:
-        print(f"\n🎉 Enhanced text files saved in: {songs_dir}")
-        print(f"   All files preserve musical information from both clefs")
+    if verbose:
+        print("\n" + "=" * 60)
+        print(f"📊 BATCH CONVERSION SUMMARY:")
+        print(f"   Total MXL files found: {len(mxl_files)}")
+        print(f"   ✅ Successfully converted: {successful_conversions}")
+        print(f"   ❌ Failed conversions: {failed_conversions}")
+        print(f"   ⏭️  Skipped (already exist): {skipped_conversions}")
+
+        if successful_conversions > 0:
+            print(f"\n🎉 Enhanced text files saved in: {songs_dir}")
+            print(f"   All files preserve musical information from both clefs")
         
     return successful_conversions > 0
 
@@ -772,18 +789,21 @@ if __name__ == "__main__":
     try:
         if args.batch_convert:
             # Batch conversion mode
-            print("🎵 Enhanced MXL Batch Converter with Dual Clef Support")
-            print("=" * 50)
+            if args.verbose:
+                print("🎵 Enhanced MXL Batch Converter with Dual Clef Support")
+                print("=" * 50)
             success = batch_convert_all_mxl_files(
                 directory=args.directory,
                 force_overwrite=args.force,
                 start_only=args.start_only,
+                verbose=args.verbose,
             )
             sys.exit(0 if success else 1)
         elif args.interactive or (not args.input_file and not args.batch_convert):
             # Interactive mode - either explicitly requested or no input file provided
-            print("🎵 Enhanced MXL Converter - Interactive Mode")
-            print("=" * 40)
+            if args.verbose:
+                print("🎵 Enhanced MXL Converter - Interactive Mode")
+                print("=" * 40)
             
             # Step 1: Select MXL file
             mxl_file_to_convert = list_and_select_mxl_file(args.directory)
@@ -810,13 +830,15 @@ if __name__ == "__main__":
             custom_time_signature = get_custom_time_signature(original_time_signature)
             
             # Step 5: Convert with selected values
-            print(f"\n🔄 Converting with tempo: {custom_tempo} BPM and time signature: {custom_time_signature}")
+            if args.verbose:
+                print(f"\n🔄 Converting with tempo: {custom_tempo} BPM and time signature: {custom_time_signature}")
             success = convert_mxl_with_dual_clef(
                 mxl_file_to_convert,
                 args.output_file,
                 custom_tempo,
                 custom_time_signature,
                 start_only=args.start_only,
+                verbose=args.verbose,
             )
             sys.exit(0 if success else 1)
         
@@ -826,18 +848,21 @@ if __name__ == "__main__":
                 print(f"❌ Error: Input file '{args.input_file}' not found.")
                 sys.exit(1)
             
-            print("🎵 Enhanced MXL Converter with Dual Clef Support")
-            print("=" * 30)
+            if args.verbose:
+                print("🎵 Enhanced MXL Converter with Dual Clef Support")
+                print("=" * 30)
             success = convert_mxl_with_dual_clef(
                 args.input_file,
                 args.output_file,
                 start_only=args.start_only,
+                verbose=args.verbose,
             )
             sys.exit(0 if success else 1)
         else:
             # This shouldn't happen but fallback to interactive mode
-            print("🎵 Enhanced MXL Converter - Interactive Mode")
-            print("=" * 40)
+            if args.verbose:
+                print("🎵 Enhanced MXL Converter - Interactive Mode")
+                print("=" * 40)
             
             mxl_file_to_convert = list_and_select_mxl_file(args.directory)
             
@@ -859,13 +884,15 @@ if __name__ == "__main__":
             custom_tempo = get_custom_tempo(original_tempo)
             custom_time_signature = get_custom_time_signature(original_time_signature)
             
-            print(f"\n🔄 Converting with tempo: {custom_tempo} BPM and time signature: {custom_time_signature}")
+            if args.verbose:
+                print(f"\n🔄 Converting with tempo: {custom_tempo} BPM and time signature: {custom_time_signature}")
             success = convert_mxl_with_dual_clef(
                 mxl_file_to_convert,
                 args.output_file,
                 custom_tempo,
                 custom_time_signature,
                 start_only=args.start_only,
+                verbose=args.verbose,
             )
             sys.exit(0 if success else 1)
             
