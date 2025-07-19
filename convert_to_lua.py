@@ -1,13 +1,18 @@
 #!/usr/bin/env python3
 """Convert .mxl or .mid files to Lua script for HPMA Piano."""
 import argparse
+import glob
 import os
-from music21 import converter, tempo, note, chord
+from typing import Optional
+
+from music21 import converter, tempo
 
 from music_file_parser import parse_music_file
-from key_mapper import get_keyboard_key, convert_standard_note_to_custom
+from key_mapper import get_keyboard_key
 
 DEFAULT_BPM = 120
+# Default directory containing MIDI/MXL files
+DEFAULT_MUSIC_DIR = r"c:\Users\domef\OneDrive\Desktop\HPMA_Piano\mxl"
 
 
 def detect_tempo(score):
@@ -21,6 +26,49 @@ def detect_tempo(score):
             except Exception:
                 pass
     return None
+
+
+def list_and_select_music_file(directory: str = DEFAULT_MUSIC_DIR) -> Optional[str]:
+    """List MIDI/MXL files in ``directory`` and prompt the user to choose."""
+    if not os.path.isdir(directory):
+        print(f"Directory not found: {directory}")
+        return None
+
+    pattern = os.path.join(directory, "*.m*")  # matches .mid/.midi/.mxl
+    files = sorted(glob.glob(pattern))
+    files = [f for f in files if f.lower().endswith((".mxl", ".mid", ".midi"))]
+
+    if not files:
+        print(f"No MIDI or MXL files found in '{directory}'.")
+        return None
+
+    print(f"\n--- Available Music Files in '{directory}' ---")
+    for i, f in enumerate(files, 1):
+        print(f"{i}. {os.path.basename(f)}")
+
+    while True:
+        choice = input("Enter the number of the file to convert (or 'q' to quit): ").strip().lower()
+        if choice == "q":
+            return None
+        try:
+            idx = int(choice) - 1
+            if 0 <= idx < len(files):
+                return files[idx]
+            else:
+                print("Invalid number. Please try again.")
+        except ValueError:
+            print("Invalid input. Please enter a number or 'q'.")
+
+
+def prompt_yes_no(message: str) -> bool:
+    """Prompt the user with ``message`` and return ``True`` for yes."""
+    while True:
+        ans = input(f"{message} (y/n): ").strip().lower()
+        if ans in ("y", "yes"):
+            return True
+        if ans in ("n", "no", ""):
+            return False
+        print("Please enter 'y' or 'n'.")
 
 
 def convert_file_to_lua(file_path, output_file=None, detect_bpm=False, hold_notes=False):
@@ -80,17 +128,31 @@ def convert_file_to_lua(file_path, output_file=None, detect_bpm=False, hold_note
 
 def main():
     parser = argparse.ArgumentParser(description="Convert .mxl or .mid to Lua script")
-    parser.add_argument("file", help="Input .mxl or .mid file")
+    parser.add_argument("file", nargs="?", help="Input .mxl or .mid file")
     parser.add_argument("-o", "--output", help="Output .lua file")
+    parser.add_argument("-d", "--directory", default=DEFAULT_MUSIC_DIR, help="Directory containing music files")
     parser.add_argument("--detect-bpm", action="store_true", help="Use tempo from file if available")
     parser.add_argument("--hold-notes", action="store_true", help="Preserve note durations")
     args = parser.parse_args()
 
+    file_path = args.file
+    if not file_path:
+        file_path = list_and_select_music_file(args.directory)
+        if not file_path:
+            print("No file selected. Exiting.")
+            return
+        if not args.detect_bpm:
+            args.detect_bpm = prompt_yes_no("Detect BPM from file?")
+        if not args.hold_notes:
+            args.hold_notes = prompt_yes_no("Hold notes (preserve durations)?")
+
     output = args.output
-    if output is None:
-        base = os.path.splitext(os.path.basename(args.file))[0]
+    if output is None and file_path:
+        base = os.path.splitext(os.path.basename(file_path))[0]
         output = base + ".lua"
-    convert_file_to_lua(args.file, output, detect_bpm=args.detect_bpm, hold_notes=args.hold_notes)
+
+    if file_path:
+        convert_file_to_lua(file_path, output, detect_bpm=args.detect_bpm, hold_notes=args.hold_notes)
 
 
 if __name__ == "__main__":
