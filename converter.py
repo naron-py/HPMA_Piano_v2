@@ -1,7 +1,7 @@
 # converter.py
 
 import os
-from music21 import converter, note, chord, stream
+from music21 import converter, note, chord, stream, instrument
 
 # The pitch 'C4' is often considered the dividing line between hands in simple piano music.
 # This is a heuristic and may not be accurate for all pieces.
@@ -49,6 +49,23 @@ def parse_file(file_path):
         print(f"Error: Could not parse file. Reason: {e}")
         return None
 
+    # Filter to piano parts when possible for better accuracy
+    piano_parts = []
+    for part in score.parts:
+        inst = part.getInstrument(returnDefault=False)
+        names = [part.partName, part.partAbbreviation]
+        if inst:
+            names.append(inst.instrumentName)
+            names.append(inst.instrumentAbbreviation)
+        name_str = " ".join(n.lower() for n in names if n)
+        if "piano" in name_str:
+            piano_parts.append(part)
+    if piano_parts:
+        score = stream.Score(piano_parts)
+
+    # Combine simultaneous notes across parts into chords
+    score = score.chordify()
+
     # --- Metadata Extraction ---
     tempo = 120  # Default tempo
     if score.metronomeMarkBoundaries():
@@ -69,9 +86,9 @@ def parse_file(file_path):
         
     # --- Note and Chord Processing ---
     song_data = []
-    
-    # Use .flat.notesAndRests to get a single stream of all musical events
-    for element in score.flat.notesAndRests:
+
+    # Iterate over all notes and rests in time order
+    for element in score.recurse().notesAndRests:
         hand = get_hand(element)
         
         # Format the line based on the element type
