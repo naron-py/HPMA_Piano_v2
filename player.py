@@ -60,43 +60,48 @@ def play_song(song_path):
     print(f"Playing '{song_path}' at {tempo} BPM (beat duration: {beat_duration:.2f}s)")
 
     # --- 2. Countdown and Play ---
-    print("Switch to your game window now! Starting in:")
-    for i in range(3, 0, -1):
-        print(f"{i}...")
-        time.sleep(1)
-    print("Playing now!")
+    try:
+        print("Switch to your game window now! Starting in:")
+        for i in range(3, 0, -1):
+            print(f"{i}...")
+            time.sleep(1)
+        print("Playing now!")
 
-    for line in lines:
-        line = line.strip()
-        if not line or line.startswith('#'):
-            continue
-            
-        parts = line.split(':')
-        
-        # Rests are handled by just sleeping
-        if parts[0] == "Rest":
-            duration = float(parts[1])
+        for line in lines:
+            line = line.strip()
+            if not line or line.startswith('#'):
+                continue
+
+            parts = line.split(':')
+
+            # Rests are handled by just sleeping
+            if parts[0] == "Rest":
+                duration = float(parts[1])
+                time.sleep(duration * beat_duration)
+                continue
+
+            # The structure is Hand:Note:Duration, so note is at index 1 or 2
+            note_info = parts[1] if len(parts) == 3 else parts[0]
+            duration = float(parts[-1])
+
+            # A chord will have '-' in its name
+            if '-' in note_info:
+                chord_notes = note_info.split('-')
+                keys_to_press = [NOTE_TO_KEY.get(n) for n in chord_notes if NOTE_TO_KEY.get(n)]
+                if keys_to_press:
+                    # Use pyautogui.hotkey for chords
+                    pyautogui.hotkey(*keys_to_press)
+            else:
+                # Single note
+                key_to_press = NOTE_TO_KEY.get(note_info)
+                if key_to_press:
+                    pyautogui.press(key_to_press)
+
+            # Wait for the note's duration before playing the next one
             time.sleep(duration * beat_duration)
-            continue
-        
-        # The structure is Hand:Note:Duration, so note is at index 1 or 2
-        note_info = parts[1] if len(parts) == 3 else parts[0]
-        duration = float(parts[-1])
-        
-        # A chord will have '-' in its name
-        if '-' in note_info:
-            chord_notes = note_info.split('-')
-            keys_to_press = [NOTE_TO_KEY.get(n) for n in chord_notes if NOTE_TO_KEY.get(n)]
-            if keys_to_press:
-                # Use pyautogui.hotkey for chords
-                pyautogui.hotkey(*keys_to_press)
-        else:
-            # Single note
-            key_to_press = NOTE_TO_KEY.get(note_info)
-            if key_to_press:
-                pyautogui.press(key_to_press)
-        
-        # Wait for the note's duration before playing the next one
-        time.sleep(duration * beat_duration)
-        
+
+    except KeyboardInterrupt:
+        print("\nPlayback interrupted by user.")
+        return
+
     print("Song finished.")
