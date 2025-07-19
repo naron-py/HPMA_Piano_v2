@@ -1,7 +1,7 @@
 import os
 # Use the `consolemenu` package for interactive CLI menus
-from consolemenu import ConsoleMenu
-from consolemenu.items import MenuItem
+from consolemenu import ConsoleMenu, SelectionMenu
+from consolemenu.items import FunctionItem
 import converter
 import player
 
@@ -41,18 +41,16 @@ def run_player():
         input("Press Enter to return to the menu.")
         return
 
-    # Create a sub-menu to select a song
-    song_menu_items = [MenuItem(text=song) for song in song_files]
-    song_menu = ConsoleMenu("Select a Song to Play", "Choose a song from the list below.")
-    for item in song_menu_items:
-        song_menu.append_item(item)
-    
-    song_menu.show()
-    
-    if song_menu.is_exit():
+    # Use SelectionMenu to get the user's choice
+    selected_song_index = SelectionMenu.get_selection(
+        song_files,
+        title="Select a Song to Play",
+        subtitle="Choose a song from the list below."
+    )
+
+    if selected_song_index is None or selected_song_index < 0:
         return
 
-    selected_song_index = song_menu.get_selection()
     selected_song = song_files[selected_song_index]
     song_path = os.path.join(SONGS_DIR, selected_song)
 
@@ -72,19 +70,17 @@ def run_converter():
         input("Press Enter to return to the menu.")
         return
 
-    # Create a sub-menu to select a file to convert
-    file_menu_items = [MenuItem(text=file) for file in source_files]
-    file_menu = ConsoleMenu("Select a File to Convert", "Choose a file from the list below.")
-    for item in file_menu_items:
-        file_menu.append_item(item)
-    
-    file_menu.show()
-    
-    if file_menu.is_exit():
+    # Use SelectionMenu to get the user's choice
+    selected_file_index = SelectionMenu.get_selection(
+        source_files,
+        title="Select a File to Convert",
+        subtitle="Choose a file from the list below."
+    )
+
+    if selected_file_index is None or selected_file_index < 0:
         return
 
     # Get the selected file and call the converter
-    selected_file_index = file_menu.get_selection()
     selected_file = source_files[selected_file_index]
     file_path = os.path.join(SOURCE_FILES_DIR, selected_file)
     
@@ -98,8 +94,8 @@ def main():
 
     menu = ConsoleMenu("HPMA Piano Assistant", "Welcome! What would you like to do?")
     
-    player_item = MenuItem("Play a song from the 'songs' folder", run_player)
-    converter_item = MenuItem("Convert a file from your 'source_files' folder", run_converter)
+    player_item = FunctionItem("Play a song from the 'songs' folder", run_player)
+    converter_item = FunctionItem("Convert a file from your 'source_files' folder", run_converter)
     
     menu.append_item(player_item)
     menu.append_item(converter_item)
