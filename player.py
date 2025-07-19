@@ -2,37 +2,21 @@
 
 import pyautogui
 import time
-import pywinctl as gw
 from key_mapper import NOTE_TO_KEY
 
 # Fail-safe: moving mouse to a corner will stop the script
 pyautogui.FAILSAFE = True
 
-def play_song(song_path, window_title):
-    """
-    Plays a song from a .txt file by sending keystrokes to a target window.
+def play_song(song_path):
+    """Plays a song from a .txt file by sending keystrokes to the active window.
+
+    The user should manually focus the target game window before the countdown
+    ends.
 
     Args:
         song_path (str): The path to the .txt song file.
-        window_title (str): The title of the window to send keystrokes to.
     """
-    # --- 1. Find and Activate Target Window ---
-    try:
-        target_window = gw.getWindowsWithTitle(window_title)
-        if not target_window:
-            print(f"Error: Window '{window_title}' not found.")
-            return
-        
-        # Activate the window to ensure it has focus
-        target_window[0].activate()
-        print(f"Successfully focused window: '{window_title}'")
-        
-    except Exception as e:
-        print(f"Error interacting with window: {e}")
-        print("Please ensure the window title is correct and the application is running.")
-        return
-
-    # --- 2. Load and Parse Song File ---
+    # --- 1. Load and Parse Song File ---
     try:
         with open(song_path, 'r') as f:
             lines = f.readlines()
@@ -51,9 +35,9 @@ def play_song(song_path, window_title):
     beat_duration = 60.0 / tempo
     print(f"Playing '{song_path}' at {tempo} BPM (beat duration: {beat_duration:.2f}s)")
 
-    # --- 3. Countdown and Play ---
-    print("Starting in:")
-    for i in range(5, 0, -1):
+    # --- 2. Countdown and Play ---
+    print("Switch to your game window now! Starting in:")
+    for i in range(3, 0, -1):
         print(f"{i}...")
         time.sleep(1)
     print("Playing now!")
