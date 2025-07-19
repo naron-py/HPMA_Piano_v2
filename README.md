@@ -82,7 +82,7 @@ lua mxl_to_lua.lua song.txt song.lua
 python main.py
 
 # Select a song from the menu
-# Switch to your piano game when prompted
+# After selecting a song, switch to your piano game before the countdown ends
 ```
 
 ### Option 3: Test the System
@@ -147,7 +147,7 @@ STANDARD_OCTAVE_TO_CUSTOM_OCTAVE = {
 
 ## 🎮 Gaming Tips
 
-1. **Window Focus**: Make sure your piano game is the active window before playback starts
+1. **Window Focus**: Ensure your piano game is active before the 3‑second countdown finishes
 2. **Failsafe**: Move mouse to top-left corner to stop playback immediately
 3. **Timing**: Adjust `TEMPO_BPM` if the music plays too fast/slow
 4. **Practice**: Test with short songs first to calibrate timing
@@ -187,7 +187,7 @@ STANDARD_OCTAVE_TO_CUSTOM_OCTAVE = {
 ## ⚠️ Important Notes
 
 - This script sends keyboard inputs to whatever window is active
-- Make sure your piano game is focused before playback
+- Make sure your piano game is focused before the countdown ends
 - Some games may have anti-automation protection
 - Test with simple songs first
 - Use responsibly and follow game terms of service

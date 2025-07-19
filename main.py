@@ -54,12 +54,8 @@ def run_player():
     selected_song = song_files[selected_song_index]
     song_path = os.path.join(SONGS_DIR, selected_song)
 
-    window_title = input("\nEnter the exact title of the game/piano window: ")
-    if not window_title:
-        print("Window title cannot be empty.")
-        return
-        
-    player.play_song(song_path, window_title)
+    print("\nAfter selecting a song, quickly switch to your game window.")
+    player.play_song(song_path)
     input("\nPress Enter to return to the main menu.")
 
 def run_converter():
