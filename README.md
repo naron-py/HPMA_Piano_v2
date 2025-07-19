@@ -29,7 +29,7 @@ Octave 5 (High):   1 2 3 4 5 6 7 8 9 0 - +
 ```
 HPMA_Piano/
 ├── main.py              # Main script to run
-├── player.py            # Handles keyboard automation
+├── enhanced_music_player.py # Handles keyboard automation
 ├── music_file_parser.py # Parses .mxl/.mid files
 ├── key_mapper.py        # Maps notes to keyboard keys
 ├── songs/               # Directory for song files
@@ -42,17 +42,36 @@ HPMA_Piano/
 
 ### Quick Start
 1. **Run the demo/guide**: `python demo.py`
-2. **Convert .mxl to song file**: `python convert_mxl.py your_file.mxl`
+2. **Convert .mxl to song file**: `python convert_mxl_dual_clef.py your_file.mxl`
 3. **Play songs**: `python main.py`
 
 ### Option 1: Convert MusicXML Files
 ```bash
 # Convert a .mxl file to a playable .txt song file
-python convert_mxl.py loop.mxl
-python convert_mxl.py M2M_Pretty_Boy.mxl
+python convert_mxl_dual_clef.py loop.mxl
+python convert_mxl_dual_clef.py M2M_Pretty_Boy.mxl
 
 # The converted files will be saved in the songs/ directory
 ```
+
+### Export to Lua
+After converting an `.mxl` file you can create a Lua table for macro scripts:
+
+```bash
+# Convert to text then create Lua table
+python convert_mxl_dual_clef.py song.mxl --start-only
+lua mxl_to_lua.lua song.txt song.lua
+```
+
+### Command-Line Flags
+`convert_mxl_dual_clef.py` supports several options:
+
+- `-b`, `--batch-convert` – convert all `.mxl` files in a folder
+- `-i`, `--interactive` – walk through file selection and tempo prompts
+- `-d`, `--directory` – directory containing `.mxl` files
+- `-f`, `--force` – overwrite existing output files
+- `-v`, `--verbose` – extra debug output
+- `--start-only` – output only note-on events for simpler exports
 
 ### Option 2: Play Existing Songs
 ```bash
