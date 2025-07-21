@@ -67,6 +67,20 @@ def _sleep_check_stop(seconds: float) -> bool:
         time.sleep(min(0.1, end_time - time.time()))
     return _stop_event.is_set()
 
+
+def _parse_duration(value: str) -> float:
+    """Convert a duration string that may be a fraction to a float."""
+    try:
+        return float(value)
+    except ValueError:
+        try:
+            from fractions import Fraction
+
+            return float(Fraction(value))
+        except Exception:
+            print(f"Warning: could not parse duration '{value}'. Using 0.")
+            return 0.0
+
 def play_song(song_path):
     """Plays a song from a .txt file by sending keystrokes to the active window.
 
@@ -124,7 +138,7 @@ def play_song(song_path):
 
             # Rests are handled by just sleeping
             if parts[0] == "Rest":
-                duration = float(parts[1])
+                duration = _parse_duration(parts[1])
                 if _sleep_check_stop(duration * beat_duration):
                     print("Playback stopped.")
                     return
@@ -132,7 +146,9 @@ def play_song(song_path):
 
             # The structure is Hand:Note:Duration, so note is at index 1 or 2
             note_info = parts[1] if len(parts) == 3 else parts[0]
-            duration = float(parts[-1])
+            duration = _parse_duration(parts[-1])
+
+            print(f"Note: {note_info}, Duration: {duration}")
 
             # A chord will have '-' in its name
             if '-' in note_info:
