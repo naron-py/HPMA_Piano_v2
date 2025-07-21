@@ -1,4 +1,12 @@
-# converter.py
+"""Utility to convert MusicXML or MIDI files to a simplified text format.
+
+The generated text file is optimised for the automatic piano playback
+scripts in this project. Metadata such as tempo, time signature and key
+signature are detected when possible and written to the top of the file.
+
+Only notes within the standard playable range for the automated piano
+(C3–B5) are used; pitches outside this range are shifted by octaves.
+"""
 
 import os
 from music21 import (
@@ -30,7 +38,11 @@ def shift_pitch_to_range(p):
     return p
 
 def detect_metadata(file_path):
-    """Return tempo, primary time signature and all time signatures for a file."""
+    """Return tempo and time signature information for ``file_path``.
+
+    The function is lightweight and used by the menu interface to display
+    basic metadata before conversion.
+    """
     try:
         score = converter.parse(file_path)
     except Exception as e:  # pragma: no cover - parse errors are rare
@@ -41,6 +53,10 @@ def detect_metadata(file_path):
     tempos = list(score.recurse().getElementsByClass(m21tempo.MetronomeMark))
     if tempos:
         mark = tempos[0]
+        if len(tempos) > 1:
+            print(
+                f"Warning: Multiple tempo markings found; using {mark.getQuarterBPM()} BPM from first mark."
+            )
         if mark.number is not None:
             tempo = mark.number
         elif mark.getQuarterBPM() is not None:
@@ -53,6 +69,10 @@ def detect_metadata(file_path):
             signatures.append(sig)
 
     time_sig = signatures[0] if signatures else "4/4"
+    if len(signatures) > 1:
+        print(
+            f"Warning: Multiple time signatures detected: {', '.join(signatures)}. Using {time_sig}."
+        )
     return tempo, time_sig, signatures
 
 
@@ -68,6 +88,16 @@ def parse_file(file_path, tempo_override=None):
         str: The path to the newly created .txt song file, or None if conversion failed.
     """
     print(f"Parsing '{os.path.basename(file_path)}'...")
+
+    if not os.path.exists(file_path):
+        print("Error: File does not exist.")
+        return None
+
+    ext = os.path.splitext(file_path)[1].lower()
+    if ext not in (".mxl", ".musicxml", ".mid", ".midi"):
+        print("Error: Unsupported file type. Use .mxl or .midi files.")
+        return None
+
     try:
         # Load the score from the file
         score = converter.parse(file_path)
@@ -88,6 +118,8 @@ def parse_file(file_path, tempo_override=None):
             piano_parts.append(part)
     if piano_parts:
         score = stream.Score(piano_parts)
+    else:
+        print("Warning: No explicit piano parts found; using entire score.")
 
     # Flatten the score and remove ties so we can work with a single
     # sequence of events. This helps keep note ordering consistent when
@@ -99,6 +131,10 @@ def parse_file(file_path, tempo_override=None):
     tempos = list(score.recurse().getElementsByClass(m21tempo.MetronomeMark))
     if tempos:
         mark = tempos[0]
+        if len(tempos) > 1:
+            print(
+                f"Warning: Multiple tempo markings found; using {mark.getQuarterBPM()} BPM from first mark."
+            )
         if mark.number is not None:
             tempo = mark.number
         elif mark.getQuarterBPM() is not None:
@@ -166,9 +202,10 @@ def parse_file(file_path, tempo_override=None):
     if not song_data:
         print("Error: No musical data could be extracted.")
         return None
-        
+
     output_filename = f"{os.path.splitext(os.path.basename(file_path))[0]}.txt"
     output_path = os.path.join("songs", output_filename)
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
     
     with open(output_path, "w") as f:
         # Write metadata at the top of the file
