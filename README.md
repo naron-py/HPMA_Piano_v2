@@ -151,8 +151,9 @@ nearest supported octave when converting files.
 
 1. **Window Focus**: Ensure your piano game is active before the 3‑second countdown finishes
 2. **Failsafe**: Move mouse to top-left corner to stop playback immediately
-3. **Timing**: Adjust `TEMPO_BPM` if the music plays too fast/slow
-4. **Practice**: Test with short songs first to calibrate timing
+3. **ESC Key**: Press `ESC` during playback to stop the current song
+4. **Timing**: Adjust `TEMPO_BPM` if the music plays too fast/slow
+5. **Practice**: Test with short songs first to calibrate timing
 
 ## 🛠️ Troubleshooting
 
