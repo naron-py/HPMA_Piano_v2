@@ -12,33 +12,6 @@ from music21 import (
     meter,
 )
 
-# The pitch 'C4' is often considered the dividing line between hands in simple piano music.
-# This is a heuristic and may not be accurate for all pieces.
-RIGHT_HAND_THRESHOLD = 'C4'
-
-def get_hand(element):
-    """
-    Determines if a note or chord should be played by the left or right hand.
-    Uses a simple pitch-based heuristic.
-    """
-    # In music21, a Rest has no pitch, so we can't assign it a hand.
-    if isinstance(element, note.Rest):
-        return ""
-
-    # For a single note, compare its pitch to the threshold
-    if isinstance(element, note.Note):
-        if element.pitch >= note.Pitch(RIGHT_HAND_THRESHOLD):
-            return "RH"
-        else:
-            return "LH"
-
-    # For a chord, check the pitch of the lowest note
-    if isinstance(element, chord.Chord):
-        if element.sortAscending().pitches[0] >= note.Pitch(RIGHT_HAND_THRESHOLD):
-            return "RH"
-        else:
-            return "LH"
-    return ""
 
 def shift_pitch_to_range(p):
     """Shift a pitch into the supported C3-B5 range."""
@@ -118,52 +91,38 @@ def parse_file(file_path):
         print("Warning: Could not determine key signature. Defaulting to C major.")
         
     # --- Note and Chord Processing ---
+    # Use chordify to merge simultaneous notes from all parts so that
+    # rests from individual voices do not create unwanted gaps. The
+    # duration of each resulting chord represents the time until the
+    # next musical event.
+    chordified = score.chordify().flatten().stripTies()
+
     events = []
-    for element in score.notesAndRests:
+    for element in chordified:
+        if not isinstance(element, (note.Note, chord.Chord, note.Rest)):
+            continue
         offset = round(element.offset, 3)
         duration = round(element.duration.quarterLength, 3)
 
         if isinstance(element, note.Rest):
-            events.append((offset, "Rest", "", duration))
-            continue
-
-        if isinstance(element, note.Note):
-            hand = "RH" if element.pitch >= note.Pitch(RIGHT_HAND_THRESHOLD) else "LH"
-            name = shift_pitch_to_range(element.pitch).nameWithOctave
-            events.append((offset, hand, name, duration))
-            continue
-
-        if isinstance(element, chord.Chord):
-            left = []
-            right = []
-            for n in element.notes:
-                n_name = shift_pitch_to_range(n.pitch).nameWithOctave
-                if n.pitch >= note.Pitch(RIGHT_HAND_THRESHOLD):
-                    right.append(n_name)
-                else:
-                    left.append(n_name)
-            if left:
-                left.sort(key=lambda n: pitch.Pitch(n))
-                events.append((offset, "LH", "-".join(left), duration))
-            if right:
-                right.sort(key=lambda n: pitch.Pitch(n))
-                events.append((offset, "RH", "-".join(right), duration))
-
-    # Sort and merge events that share offset, hand and duration
-    events.sort(key=lambda e: (e[0], e[1]))
-    merged = []
-    for evt in events:
-        if merged and evt[0] == merged[-1][0] and evt[1] == merged[-1][1] and evt[3] == merged[-1][3]:
-            merged[-1][2] = merged[-1][2] + "-" + evt[2] if merged[-1][2] else evt[2]
+            events.append((offset, "Rest", duration))
         else:
-            merged.append(list(evt))
+            if isinstance(element, note.Note):
+                pitches = [shift_pitch_to_range(element.pitch).nameWithOctave]
+            else:
+                pitches = [shift_pitch_to_range(p).nameWithOctave for p in element.pitches]
+                pitches.sort(key=lambda n: pitch.Pitch(n))
+            events.append((offset, "-".join(pitches), duration))
+
+    # Sort by offset to ensure correct playback order
+    events.sort(key=lambda e: e[0])
 
     song_data = []
-    for offset, hand, pitches, duration in merged:
-        if hand == "Rest":
+    for _, pitches, duration in events:
+        if pitches == "Rest":
             song_data.append(f"Rest:{duration}")
         else:
-            song_data.append(f"{hand}:{pitches}:{duration}")
+            song_data.append(f"{pitches}:{duration}")
             
     # --- Write to Output File ---
     if not song_data:
