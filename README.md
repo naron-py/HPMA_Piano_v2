@@ -42,16 +42,20 @@ HPMA_Piano/
 
 ### Quick Start
 1. **Run the demo/guide**: `python demo.py`
-2. **Convert .mxl to song file**: `python convert_mxl_dual_clef.py your_file.mxl`
+2. **Convert .mxl to song file**: run `python main.py` and choose the
+   **Convert** option to process your MusicXML or MIDI file.
 3. **Play songs**: `python main.py`
 
 ### Option 1: Convert MusicXML Files
 ```bash
-# Convert a .mxl file to a playable .txt song file
-python convert_mxl_dual_clef.py loop.mxl
-python convert_mxl_dual_clef.py M2M_Pretty_Boy.mxl
+# Convert a .mxl file to a playable .txt song file using the converter module
+python -c "import converter; converter.parse_file('source_files/loop.mxl')"
+python -c "import converter; converter.parse_file('source_files/M2M_Pretty_Boy.mxl')"
 
 # The converted files will be saved in the songs/ directory
+The converter analyses tempo and time signature to preserve the original
+feel of the piece and splits notes between left and right hands when
+needed.
 ```
 
 ### Export to Lua
