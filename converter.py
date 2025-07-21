@@ -1,6 +1,7 @@
 # converter.py
 
 import os
+from collections import defaultdict
 from music21 import converter, note, chord, stream, instrument, pitch
 
 # The pitch 'C4' is often considered the dividing line between hands in simple piano music.
@@ -79,8 +80,10 @@ def parse_file(file_path):
     if piano_parts:
         score = stream.Score(piano_parts)
 
-    # Combine simultaneous notes across parts into chords
-    score = score.chordify()
+    # Flatten the score and remove ties so we can work with a single
+    # sequence of events. This helps keep note ordering consistent when
+    # multiple voices are present.
+    score = score.flatten().stripTies()
 
     # --- Metadata Extraction ---
     tempo = 120  # Default tempo
@@ -103,26 +106,33 @@ def parse_file(file_path):
     # --- Note and Chord Processing ---
     song_data = []
 
-    # Iterate over all notes and rests in time order
-    for element in score.recurse().notesAndRests:
-        hand = get_hand(element)
-        
-        # Format the line based on the element type
-        if isinstance(element, note.Note):
-            shifted = shift_pitch_to_range(element.pitch)
-            pitch_name = shifted.nameWithOctave
-            duration = element.duration.quarterLength
-            song_data.append(f"{hand}:{pitch_name}:{duration}")
-            
-        elif isinstance(element, chord.Chord):
-            # Join all note names in the chord with a hyphen
-            shifted = [shift_pitch_to_range(p) for p in element.pitches]
-            pitch_names = "-".join(p.nameWithOctave for p in shifted)
-            duration = element.duration.quarterLength
-            song_data.append(f"{hand}:{pitch_names}:{duration}")
+    # Group elements by their start offset so chords can be constructed
+    notes_by_offset = defaultdict(list)
+    for element in score.notesAndRests:
+        notes_by_offset[round(element.offset, 3)].append(element)
 
-        elif isinstance(element, note.Rest):
-            duration = element.duration.quarterLength
+    sorted_offsets = sorted(notes_by_offset.keys())
+
+    for idx, offset in enumerate(sorted_offsets):
+        group = notes_by_offset[offset]
+        # Determine duration based on the next event offset
+        if idx + 1 < len(sorted_offsets):
+            next_offset = sorted_offsets[idx + 1]
+        else:
+            next_offset = offset + max(e.duration.quarterLength for e in group)
+        duration = next_offset - offset
+
+        # Collect note names, ignoring rests if notes are present
+        note_names = [shift_pitch_to_range(e.pitch).nameWithOctave
+                      for e in group if isinstance(e, note.Note)]
+
+        if note_names:
+            note_names.sort(key=lambda n: pitch.Pitch(n))
+            h_element = chord.Chord(note_names) if len(note_names) > 1 else note.Note(note_names[0])
+            hand = get_hand(h_element)
+            pitch_str = "-".join(note_names)
+            song_data.append(f"{hand}:{pitch_str}:{duration}")
+        else:
             song_data.append(f"Rest:{duration}")
             
     # --- Write to Output File ---
