@@ -2,3 +2,5 @@ music21
 pyautogui
 Pillow
 console-menu
+keyboard
+
