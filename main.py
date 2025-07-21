@@ -79,8 +79,28 @@ def run_converter():
     # Get the selected file and call the converter
     selected_file = source_files[selected_file_index]
     file_path = os.path.join(SOURCE_FILES_DIR, selected_file)
-    
-    converter.parse_file(file_path)
+
+    metadata = converter.detect_metadata(file_path)
+    if metadata is None:
+        input("\nPress Enter to return to the menu.")
+        return
+    default_tempo, time_sig, sigs = metadata
+    if len(sigs) > 1:
+        print(
+            f"Warning: Multiple time signatures found: {', '.join(sigs)}. Using {time_sig}."
+        )
+
+    bpm_input = input(
+        f"Detected tempo is {default_tempo} BPM. Enter a BPM to override or press Enter to keep: "
+    )
+    tempo_override = default_tempo
+    if bpm_input.strip():
+        try:
+            tempo_override = float(bpm_input)
+        except ValueError:
+            print("Invalid BPM entered. Using detected tempo.")
+
+    converter.parse_file(file_path, tempo_override)
     
     input("\nPress Enter to return to the main menu.")
 

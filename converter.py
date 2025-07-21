@@ -29,12 +29,40 @@ def shift_pitch_to_range(p):
         p.octave -= 1
     return p
 
-def parse_file(file_path):
+def detect_metadata(file_path):
+    """Return tempo, primary time signature and all time signatures for a file."""
+    try:
+        score = converter.parse(file_path)
+    except Exception as e:  # pragma: no cover - parse errors are rare
+        print(f"Error: Could not parse file. Reason: {e}")
+        return None
+
+    tempo = 120
+    tempos = list(score.recurse().getElementsByClass(m21tempo.MetronomeMark))
+    if tempos:
+        mark = tempos[0]
+        if mark.number is not None:
+            tempo = mark.number
+        elif mark.getQuarterBPM() is not None:
+            tempo = mark.getQuarterBPM()
+
+    signatures = []
+    for ts in score.recurse().getElementsByClass(meter.TimeSignature):
+        sig = f"{ts.numerator}/{ts.denominator}"
+        if sig not in signatures:
+            signatures.append(sig)
+
+    time_sig = signatures[0] if signatures else "4/4"
+    return tempo, time_sig, signatures
+
+
+def parse_file(file_path, tempo_override=None):
     """
     Parses a MusicXML or MIDI file and converts it into a custom text format.
-    
+
     Args:
         file_path (str): The path to the input music file.
+        tempo_override (float, optional): Tempo in BPM to force for output.
 
     Returns:
         str: The path to the newly created .txt song file, or None if conversion failed.
@@ -75,12 +103,22 @@ def parse_file(file_path):
             tempo = mark.number
         elif mark.getQuarterBPM() is not None:
             tempo = mark.getQuarterBPM()
+    if tempo_override is not None:
+        tempo = tempo_override
 
     time_signature = "4/4"  # Default time signature
-    signatures = list(score.recurse().getElementsByClass(meter.TimeSignature))
+    signatures = []
+    for ts in score.recurse().getElementsByClass(meter.TimeSignature):
+        sig = f"{ts.numerator}/{ts.denominator}"
+        if sig not in signatures:
+            signatures.append(sig)
     if signatures:
-        ts = signatures[0]
-        time_signature = f"{ts.numerator}/{ts.denominator}"
+        time_signature = signatures[0]
+        if len(signatures) > 1:
+            joined = ", ".join(signatures)
+            print(
+                f"Warning: Multiple time signatures detected: {joined}. Using {time_signature}."
+            )
 
     key_signature = "C major" # Default key signature
     try:
