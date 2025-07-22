@@ -2,8 +2,11 @@ import time
 from typing import List
 
 import pyautogui
+from rich.console import Console
 
 from .key_mapper import KEY_MAPPING
+
+console = Console()
 
 
 def _parse_note(note_str: str) -> str:
@@ -13,14 +16,25 @@ def _parse_note(note_str: str) -> str:
 
 def play(song_path: str):
     """Play back a converted song file with support for overlapping notes."""
+    metadata: dict[str, str] = {}
     events = []
     with open(song_path) as f:
         for line in f:
-            if line.startswith('#') or not line.strip():
+            if line.startswith('#'):
+                if ':' in line:
+                    key, value = line[1:].split(':', 1)
+                    metadata[key.strip()] = value.strip()
+                continue
+            if not line.strip():
                 continue
             start, dur, notes = line.strip().split('\t')
             note_keys = [_parse_note(n) for n in notes.split('+')]
             events.append((float(start), float(dur), note_keys))
+
+    if metadata:
+        console.print("[bold]Song Info[/bold]")
+        for key, val in metadata.items():
+            console.print(f"{key}: {val}")
 
     # Build key press/release actions so that notes starting at the same time
     # will overlap correctly instead of playing sequentially.

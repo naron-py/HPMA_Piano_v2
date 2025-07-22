@@ -10,13 +10,24 @@ def _parse_note(note_str: str) -> str:
 
 def test(song_path: str):
     """Print simulated key presses for a song, respecting overlapping notes."""
+    metadata: dict[str, str] = {}
     events = []
     with open(song_path) as f:
         for line in f:
-            if line.startswith('#') or not line.strip():
+            if line.startswith('#'):
+                if ':' in line:
+                    key, value = line[1:].split(':', 1)
+                    metadata[key.strip()] = value.strip()
+                continue
+            if not line.strip():
                 continue
             start, dur, notes = line.strip().split('\t')
             events.append((float(start), float(dur), notes))
+
+    if metadata:
+        print("Song Info")
+        for key, val in metadata.items():
+            print(f"{key}: {val}")
 
     actions = []
     for start, dur, notes in events:
