@@ -11,18 +11,31 @@ PLAYABLE_MAX = BASE_MIDI + 36 - 1
 
 
 def _compute_shift(min_note: int, max_note: int) -> int:
-    """Return an octave shift so all notes fit within the playable range."""
+    """Return a shift in semitones to roughly center notes in the playable range."""
     playable_span = PLAYABLE_MAX - PLAYABLE_MIN
-    if max_note - min_note > playable_span:
-        raise ValueError('Song range exceeds playable keyboard span')
+    span = max_note - min_note
+    if span <= playable_span:
+        shift = 0
+        while max_note + shift > PLAYABLE_MAX:
+            shift -= 12
+        while min_note + shift < PLAYABLE_MIN:
+            shift += 12
+        return shift
 
-    shift = 0
-    while max_note + shift > PLAYABLE_MAX:
-        shift -= 12
-    while min_note + shift < PLAYABLE_MIN:
-        shift += 12
+    # If the range is too wide, shift to center the music and handle
+    # out-of-range notes later during conversion.
+    desired_center = (PLAYABLE_MAX + PLAYABLE_MIN) // 2
+    current_center = (max_note + min_note) // 2
+    return desired_center - current_center
 
-    return shift
+
+def _clamp_midi(m: int) -> int:
+    """Clamp a MIDI value to the playable range using octave shifts."""
+    while m > PLAYABLE_MAX:
+        m -= 12
+    while m < PLAYABLE_MIN:
+        m += 12
+    return m
 
 
 def _midi_to_note(m: int):
@@ -51,9 +64,11 @@ def convert(file_path: str) -> str:
             start = entry['offsetSeconds']
             dur = entry['durationSeconds']
             if isinstance(el, note.Note):
-                notes = [_midi_to_note(el.pitch.midi)]
+                midi = _clamp_midi(el.pitch.midi)
+                notes = [_midi_to_note(midi)]
             else:
-                notes = [_midi_to_note(p.midi) for p in el.pitches]
+                midi_vals = [_clamp_midi(p.midi) for p in el.pitches]
+                notes = [_midi_to_note(m) for m in midi_vals]
             events.append((start, dur, '+'.join(notes)))
     events.sort(key=lambda x: x[0])
     basename = os.path.splitext(os.path.basename(file_path))[0]
