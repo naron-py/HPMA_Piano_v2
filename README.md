@@ -11,6 +11,8 @@ simple text representation and can replay the score using the PC keyboard.
 - Plays back converted songs using `pyautogui` and a fixed three octave key
   mapping.
 - Test mode prints which keys would be played without sending any keystrokes.
+- Automatically transposes the entire song up or down in octave steps so all
+  notes fit within the mapped three-octave range.
 
 ## Usage
 

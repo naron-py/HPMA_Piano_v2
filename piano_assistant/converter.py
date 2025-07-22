@@ -11,14 +11,16 @@ PLAYABLE_MAX = BASE_MIDI + 36 - 1
 
 
 def _compute_shift(min_note: int, max_note: int) -> int:
-    """Return a semitone shift so all notes fit within the playable range."""
+    """Return an octave shift so all notes fit within the playable range."""
     playable_span = PLAYABLE_MAX - PLAYABLE_MIN
     if max_note - min_note > playable_span:
         raise ValueError('Song range exceeds playable keyboard span')
 
-    shift = PLAYABLE_MIN - min_note
-    if max_note + shift > PLAYABLE_MAX:
-        shift = PLAYABLE_MAX - max_note
+    shift = 0
+    while max_note + shift > PLAYABLE_MAX:
+        shift -= 12
+    while min_note + shift < PLAYABLE_MIN:
+        shift += 12
 
     return shift
 
