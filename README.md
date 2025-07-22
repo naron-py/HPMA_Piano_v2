@@ -12,7 +12,9 @@ simple text representation and can replay the score using the PC keyboard.
   mapping.
 - Test mode prints which keys would be played without sending any keystrokes.
 - Automatically transposes the entire song up or down in octave steps so all
-  notes fit within the mapped three-octave range.
+  notes fit within the mapped three-octave range. If the song spans more than
+  three octaves, notes outside the range are shifted by octaves individually to
+  stay playable.
 
 ## Usage
 
