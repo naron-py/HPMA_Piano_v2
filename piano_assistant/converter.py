@@ -1,6 +1,9 @@
 import os
 from typing import List
 
+# Number of decimal places to round timing information to when converting.
+ROUND_PRECISION = 3
+
 from music21 import converter as m21converter, note, chord
 
 from .key_mapper import BASE_MIDI, NOTE_NAMES
@@ -44,6 +47,11 @@ def _midi_to_note(m: int):
     return f"{name}-{octave}"
 
 
+def _round_time(value: float) -> float:
+    """Round time values to ``ROUND_PRECISION`` decimal places."""
+    return round(value, ROUND_PRECISION)
+
+
 def convert(file_path: str) -> str:
     score = m21converter.parse(file_path)
     midi_numbers: List[int] = []
@@ -61,8 +69,8 @@ def convert(file_path: str) -> str:
     for entry in flat_score.secondsMap:
         el = entry['element']
         if isinstance(el, (note.Note, chord.Chord)):
-            start = entry['offsetSeconds']
-            dur = entry['durationSeconds']
+            start = _round_time(entry['offsetSeconds'])
+            dur = _round_time(entry['durationSeconds'])
             if isinstance(el, note.Note):
                 midi = _clamp_midi(el.pitch.midi)
                 notes = [_midi_to_note(midi)]
@@ -70,6 +78,8 @@ def convert(file_path: str) -> str:
                 midi_vals = [_clamp_midi(p.midi) for p in el.pitches]
                 notes = [_midi_to_note(m) for m in midi_vals]
             events.append((start, dur, '+'.join(notes)))
+    # Sort by the rounded start time so notes starting nearly together are
+    # grouped exactly together for playback.
     events.sort(key=lambda x: x[0])
     basename = os.path.splitext(os.path.basename(file_path))[0]
     out_name = f"{basename}_{timestamp()}.txt"
