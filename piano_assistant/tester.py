@@ -23,7 +23,10 @@ def test(song_path: str):
         keys = [_parse_note(n) for n in notes.split('+')]
         actions.append((start, 'down', notes, keys))
         actions.append((start + dur, 'up', notes, keys))
-    actions.sort(key=lambda x: x[0])
+    # Sort so that key releases occur before presses at the same time.
+    # This mirrors the behaviour of ``player.play`` and keeps
+    # overlapping notes from drifting out of sync during rapid passages.
+    actions.sort(key=lambda x: (x[0], 0 if x[1] == 'up' else 1))
 
     start_time = time.time()
     pressed: dict[str, int] = {}
