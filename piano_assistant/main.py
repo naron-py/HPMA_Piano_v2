@@ -1,6 +1,28 @@
+from rich.console import Console
+from rich.prompt import Prompt
+
+from . import menu
+
+console = Console()
+
+
+def main():
+    while True:
+        console.print("\n[bold cyan]Piano Assistant[/bold cyan]")
+        console.print("[1] Convert Song")
+        console.print("[2] Test Mode")
+        console.print("[3] Play Song")
+        console.print("[4] Exit")
+        choice = Prompt.ask("Select option", choices=['1','2','3','4'])
+        if choice == '1':
+            menu.convert_menu()
+        elif choice == '2':
+            menu.test_menu()
+        elif choice == '3':
+            menu.play_menu()
+        else:
+            break
+
+
 if __name__ == '__main__':
-    try:
-        from .menu import menu_loop
-    except ImportError:  # fall back when run as script
-        from menu import menu_loop  # type: ignore
-    menu_loop()
+    main()

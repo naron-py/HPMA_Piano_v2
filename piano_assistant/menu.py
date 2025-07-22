@@ -1,63 +1,52 @@
-from __future__ import annotations
 import os
-from . import converter, player
-from .utils import list_music_files, list_text_files, print_table, console
 
-PROJECT_DIR = os.path.dirname(__file__)
-SOURCE_DIR = os.path.join(PROJECT_DIR, 'source_files')
-OUTPUT_DIR = os.path.join(PROJECT_DIR, 'output')
+from rich.console import Console
+from rich.prompt import Prompt
 
+from . import converter, player, tester
+from .utils import list_music_files, show_files_table, OUTPUT_DIR
 
-def menu_loop():
-    while True:
-        console.print("[bold magenta]Piano Assistant[/bold magenta]")
-        console.print("[cyan]1.[/] Convert Song")
-        console.print("[cyan]2.[/] Test Mode")
-        console.print("[cyan]3.[/] Exit")
-        choice = input("Select option: ").strip()
-        if choice == '1':
-            run_convert()
-        elif choice == '2':
-            run_test()
-        elif choice == '3':
-            break
-        else:
-            console.print("Invalid choice\n")
+console = Console()
 
 
-def run_convert():
-    files = list_music_files(SOURCE_DIR)
+def select_source_file():
+    files = list_music_files()
     if not files:
-        console.print("No source files found.")
-        return
-    print_table("Available Files", files)
-    sel = input("Enter number to convert: ").strip()
-    try:
-        idx = int(sel) - 1
-    except ValueError:
-        console.print("Invalid selection")
-        return
-    if idx < 0 or idx >= len(files):
-        console.print("Invalid selection")
-        return
-    path = os.path.join(SOURCE_DIR, files[idx])
-    converter.convert_file(path, OUTPUT_DIR)
+        console.print("[red]No music files found in source_files directory[/red]")
+        return None
+    show_files_table(files)
+    choice = Prompt.ask("Select file", choices=[str(i) for i in range(1, len(files)+1)])
+    return os.path.join(os.path.dirname(__file__), 'source_files', files[int(choice)-1])
 
 
-def run_test():
-    files = list_text_files(OUTPUT_DIR)
+def select_output_file():
+    files = [f for f in os.listdir(OUTPUT_DIR) if f.endswith('.txt')]
     if not files:
-        console.print("No converted songs found.")
+        console.print("[red]No converted files found[/red]")
+        return None
+    files.sort()
+    show_files_table(files)
+    choice = Prompt.ask("Select file", choices=[str(i) for i in range(1, len(files)+1)])
+    return os.path.join(OUTPUT_DIR, files[int(choice)-1])
+
+
+def convert_menu():
+    src = select_source_file()
+    if not src:
         return
-    print_table("Select Song", files)
-    sel = input("Enter number to test: ").strip()
-    try:
-        idx = int(sel) - 1
-    except ValueError:
-        console.print("Invalid selection")
+    out_path = converter.convert(src)
+    console.print(f"Saved to [green]{out_path}[/green]")
+
+
+def test_menu():
+    song = select_output_file()
+    if not song:
         return
-    if idx < 0 or idx >= len(files):
-        console.print("Invalid selection")
+    tester.test(song)
+
+
+def play_menu():
+    song = select_output_file()
+    if not song:
         return
-    path = os.path.join(OUTPUT_DIR, files[idx])
-    player.play_song(path, test_mode=True)
+    player.play(song)

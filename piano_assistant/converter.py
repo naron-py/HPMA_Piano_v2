@@ -1,76 +1,62 @@
-from __future__ import annotations
 import os
-from typing import List, Tuple
-from music21 import converter as m21converter, note, chord, tempo, stream, pitch
-from .utils import timestamped_filename
+from typing import List
+
+from music21 import converter as m21converter, note, chord
+
+from .key_mapper import BASE_MIDI, NOTE_NAMES
+from .utils import OUTPUT_DIR, timestamp
+
+PLAYABLE_MIN = BASE_MIDI
+PLAYABLE_MAX = BASE_MIDI + 36 - 1
 
 
-def _tempo_events(score) -> List[Tuple[float, float]]:
+def _compute_shift(min_note: int, max_note: int) -> int:
+    target_mid = (PLAYABLE_MIN + PLAYABLE_MAX) // 2
+    song_mid = (min_note + max_note) // 2
+    shift = 12 * round((target_mid - song_mid) / 12)
+    while min_note + shift < PLAYABLE_MIN:
+        shift += 12
+    while max_note + shift > PLAYABLE_MAX:
+        shift -= 12
+    return shift
+
+
+def _midi_to_note(m: int):
+    name = NOTE_NAMES[(m - BASE_MIDI) % 12]
+    octave = (m - BASE_MIDI) // 12 + 1
+    return f"{name}-{octave}"
+
+
+def convert(file_path: str) -> str:
+    score = m21converter.parse(file_path)
+    midi_numbers: List[int] = []
+    for elem in score.recurse().notes:
+        if isinstance(elem, note.Note):
+            midi_numbers.append(elem.pitch.midi)
+        elif isinstance(elem, chord.Chord):
+            midi_numbers.extend(p.midi for p in elem.pitches)
+    if not midi_numbers:
+        raise ValueError('No notes found in file')
+    shift = _compute_shift(min(midi_numbers), max(midi_numbers))
+    score = score.transpose(shift)
     events = []
-    for mm in score.recurse().getElementsByClass(tempo.MetronomeMark):
-        bpm = mm.getQuarterBPM()
-        if bpm is None:
-            continue
-        events.append((float(mm.offset), float(bpm)))
-    if not events:
-        events.append((0.0, 120.0))
-    events.sort(key=lambda x: x[0])
-    return events
-
-
-def _offset_to_seconds(offset, tempo_map):
-    seconds = 0.0
-    last_off, last_bpm = tempo_map[0]
-    if offset < last_off:
-        return offset * 60.0 / last_bpm
-    for off, bpm in tempo_map:
-        if off >= offset:
-            break
-        seconds += (off - last_off) * 60.0 / last_bpm
-        last_off, last_bpm = off, bpm
-    seconds += (offset - last_off) * 60.0 / last_bpm
-    return seconds
-
-
-def convert_file(path: str, output_dir: str = "output") -> str | None:
-    if not os.path.exists(path):
-        print("File not found:", path)
-        return None
-    try:
-        score = m21converter.parse(path)
-    except Exception as exc:
-        print("Parse error:", exc)
-        return None
-
-    tempo_map = _tempo_events(score)
-    parts = score.parts
-    if len(parts) >= 2:
-        hand_map = {parts[0]: "RH", parts[1]: "LH"}
-    else:
-        hand_map = {part: "RH" for part in parts}
-
-    events = []
-    for part in parts:
-        hand = hand_map[part]
-        for el in part.flat.notesAndRests:
-            if isinstance(el, note.Rest):
-                continue
-            start = _offset_to_seconds(float(el.offset), tempo_map)
-            dur = _offset_to_seconds(float(el.offset + el.quarterLength), tempo_map) - start
+    for entry in score.secondsMap:
+        el = entry['element']
+        if isinstance(el, (note.Note, chord.Chord)):
+            start = entry['offsetSeconds']
+            dur = entry['durationSeconds']
             if isinstance(el, note.Note):
-                pitches = [el.pitch.nameWithOctave]
+                notes = [_midi_to_note(el.pitch.midi)]
             else:
-                pitches = [p.nameWithOctave for p in el.pitches]
-                pitches.sort(key=lambda x: pitch.Pitch(x))
-            events.append((start, dur, pitches, hand))
-    events.sort(key=lambda e: e[0])
-
-    os.makedirs(output_dir, exist_ok=True)
-    out_path = os.path.join(output_dir, timestamped_filename(path))
-    with open(out_path, "w") as fh:
-        for start, dur, pitches, hand in events:
-            note_str = "+".join(pitches)
-            fh.write(f"{hand}:{note_str}:{start:.3f}:{dur:.3f}\n")
-
-    print("Converted", os.path.basename(path), "->", out_path)
+                notes = [_midi_to_note(p.midi) for p in el.pitches]
+            events.append((start, dur, '+'.join(notes)))
+    events.sort(key=lambda x: x[0])
+    basename = os.path.splitext(os.path.basename(file_path))[0]
+    out_name = f"{basename}_{timestamp()}.txt"
+    out_path = os.path.join(OUTPUT_DIR, out_name)
+    with open(out_path, 'w') as f:
+        f.write(f"# Source: {os.path.basename(file_path)}\n")
+        f.write("# start\tduration\tnotes\n")
+        for start, dur, notestr in events:
+            f.write(f"{start:.3f}\t{dur:.3f}\t{notestr}\n")
     return out_path
