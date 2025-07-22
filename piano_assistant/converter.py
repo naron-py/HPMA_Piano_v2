@@ -39,8 +39,9 @@ def convert(file_path: str) -> str:
         raise ValueError('No notes found in file')
     shift = _compute_shift(min(midi_numbers), max(midi_numbers))
     score = score.transpose(shift)
+    flat_score = score.flatten()
     events = []
-    for entry in score.secondsMap:
+    for entry in flat_score.secondsMap:
         el = entry['element']
         if isinstance(el, (note.Note, chord.Chord)):
             start = entry['offsetSeconds']
