@@ -34,7 +34,11 @@ def convert_menu():
     src = select_source_file()
     if not src:
         return
-    out_path = converter.convert(src)
+    try:
+        out_path = converter.convert(src)
+    except ValueError as e:
+        console.print(f"[red]Failed to convert:[/red] {e}")
+        return
     console.print(f"Saved to [green]{out_path}[/green]")
 
 
