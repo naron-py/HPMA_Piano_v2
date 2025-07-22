@@ -7,6 +7,11 @@ from rich.table import Table
 
 SOURCE_DIR = os.path.join(os.path.dirname(__file__), 'source_files')
 OUTPUT_DIR = os.path.join(os.path.dirname(__file__), 'output')
+
+# Ensure required directories exist so that other modules can assume they are
+# available. This avoids crashes when the package is run in a fresh clone.
+os.makedirs(SOURCE_DIR, exist_ok=True)
+os.makedirs(OUTPUT_DIR, exist_ok=True)
 console = Console()
 
 
