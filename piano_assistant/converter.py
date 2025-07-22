@@ -4,7 +4,7 @@ from typing import List
 # Number of decimal places to round timing information to when converting.
 ROUND_PRECISION = 3
 
-from music21 import converter as m21converter, note, chord
+from music21 import converter as m21converter, note, chord, meter, tempo
 
 from .key_mapper import BASE_MIDI, NOTE_NAMES
 from .utils import OUTPUT_DIR, timestamp
@@ -54,6 +54,18 @@ def _round_time(value: float) -> float:
 
 def convert(file_path: str) -> str:
     score = m21converter.parse(file_path)
+
+    # Extract basic metadata for reference during playback.
+    ts = None
+    for ts_elem in score.recurse().getElementsByClass(meter.TimeSignature):
+        ts = ts_elem.ratioString
+        break
+
+    bpm = None
+    for tempo_elem in score.recurse().getElementsByClass(tempo.MetronomeMark):
+        if tempo_elem.number:
+            bpm = int(tempo_elem.number)
+            break
     midi_numbers: List[int] = []
     for elem in score.recurse().notes:
         if isinstance(elem, note.Note):
@@ -86,6 +98,10 @@ def convert(file_path: str) -> str:
     out_path = os.path.join(OUTPUT_DIR, out_name)
     with open(out_path, 'w') as f:
         f.write(f"# Source: {os.path.basename(file_path)}\n")
+        if ts:
+            f.write(f"# Time Signature: {ts}\n")
+        if bpm:
+            f.write(f"# Tempo: {bpm} BPM\n")
         f.write("# start\tduration\tnotes\n")
         for start, dur, notestr in events:
             f.write(f"{start:.3f}\t{dur:.3f}\t{notestr}\n")
