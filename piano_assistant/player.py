@@ -28,7 +28,11 @@ def play(song_path: str):
     for start, dur, keys in events:
         actions.append((start, 'down', keys))
         actions.append((start + dur, 'up', keys))
-    actions.sort(key=lambda x: x[0])
+    # Sort by time and ensure that releases happen before presses when
+    # they share the same timestamp. This keeps rapid note repetitions
+    # in sync between hands and prevents keys from remaining held down
+    # when a new note should retrigger the same key.
+    actions.sort(key=lambda x: (x[0], 0 if x[1] == 'up' else 1))
 
     start_time = time.time()
     pressed: dict[str, int] = {}
