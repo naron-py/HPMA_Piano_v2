@@ -15,6 +15,8 @@ simple text representation and can replay the score using the PC keyboard.
   notes fit within the mapped three-octave range. If the song spans more than
   three octaves, notes outside the range are shifted by octaves individually to
   stay playable.
+- Supports overlapping notes so chords and polyphonic passages are reproduced
+  accurately during playback.
 
 ## Usage
 
