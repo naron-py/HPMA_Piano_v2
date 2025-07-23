@@ -37,6 +37,6 @@ def test_conversion_and_playback(tmp_path):
     assert any(line.startswith('# Tempo 4.000: 60 BPM') for line in lines)
 
     metadata, tempos, tss, events = tester._read_song(out_path)
-    starts = [tester._beat_to_sec(start, tempos) for start, _dur, _notes in events]
+    starts = [tester.beat_to_sec(start, tempos) for start, _dur, _notes in events]
     expected = [0.0, 0.5, 1.0, 1.5, 2.0, 3.0, 4.0]
     assert starts == pytest.approx(expected, abs=1e-3)

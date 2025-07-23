@@ -8,7 +8,10 @@ simple text representation and can replay the score using the PC keyboard.
 - Lists all `*.mid` and `*.mxl` files found in `piano_assistant/source_files`.
 - Converts a selected file to a timestamped text file in
   `piano_assistant/output`. Converted files include the original time signature
-  and tempo in comment lines for reference during playback.
+  and tempo in comment lines for reference during playback. Start and duration
+  values are measured in beats by default so playback can follow tempo changes.
+  The ``piano_assistant.converter.convert`` function also accepts
+  ``use_seconds=True`` to output times in seconds instead.
 - Plays back converted songs using `pyautogui` and a fixed three octave key
   mapping. When playing back a converted song, the program prints metadata such
   as the source file name, time signature, and tempo so you can verify the
