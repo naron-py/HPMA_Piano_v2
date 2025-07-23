@@ -55,17 +55,25 @@ def _round_time(value: float) -> float:
 def convert(file_path: str) -> str:
     score = m21converter.parse(file_path)
 
-    # Extract basic metadata for reference during playback.
-    ts = None
-    for ts_elem in score.recurse().getElementsByClass(meter.TimeSignature):
-        ts = ts_elem.ratioString
-        break
-
-    bpm = None
-    for tempo_elem in score.recurse().getElementsByClass(tempo.MetronomeMark):
-        if tempo_elem.number:
-            bpm = int(tempo_elem.number)
-            break
+    # Extract basic metadata for reference during playback and collect all
+    # time signature and tempo changes along with their offsets.
+    initial_ts = None
+    initial_bpm = None
+    ts_events: List[tuple[float, str]] = []
+    tempo_events: List[tuple[float, float]] = []
+    flat_score_meta = score.flatten()
+    for ts_elem in flat_score_meta.recurse().getElementsByClass(meter.TimeSignature):
+        off = float(ts_elem.offset)
+        ts_events.append((off, ts_elem.ratioString))
+        if initial_ts is None:
+            initial_ts = ts_elem.ratioString
+    for tempo_elem in flat_score_meta.recurse().getElementsByClass(tempo.MetronomeMark):
+        if tempo_elem.number is None:
+            continue
+        off = float(tempo_elem.offset)
+        tempo_events.append((off, float(tempo_elem.number)))
+        if initial_bpm is None:
+            initial_bpm = int(tempo_elem.number)
     midi_numbers: List[int] = []
     for elem in score.recurse().notes:
         if isinstance(elem, note.Note):
@@ -77,19 +85,20 @@ def convert(file_path: str) -> str:
     shift = _compute_shift(min(midi_numbers), max(midi_numbers))
     score = score.transpose(shift)
     flat_score = score.flatten()
+
     events = []
-    for entry in flat_score.secondsMap:
-        el = entry['element']
-        if isinstance(el, (note.Note, chord.Chord)):
-            start = _round_time(entry['offsetSeconds'])
-            dur = _round_time(entry['durationSeconds'])
-            if isinstance(el, note.Note):
-                midi = _clamp_midi(el.pitch.midi)
-                notes = [_midi_to_note(midi)]
-            else:
-                midi_vals = [_clamp_midi(p.midi) for p in el.pitches]
-                notes = [_midi_to_note(m) for m in midi_vals]
-            events.append((start, dur, '+'.join(notes)))
+    for el in flat_score.recurse().getElementsByClass((note.Note, chord.Chord)):
+        # Store timing information in beats so playback can adjust according to
+        # tempo changes.
+        start = _round_time(el.offset)
+        dur = _round_time(el.quarterLength)
+        if isinstance(el, note.Note):
+            midi = _clamp_midi(el.pitch.midi)
+            notes = [_midi_to_note(midi)]
+        else:
+            midi_vals = [_clamp_midi(p.midi) for p in el.pitches]
+            notes = [_midi_to_note(m) for m in midi_vals]
+        events.append((start, dur, '+'.join(notes)))
     # Sort by the rounded start time so notes starting nearly together are
     # grouped exactly together for playback.
     events.sort(key=lambda x: x[0])
@@ -98,10 +107,14 @@ def convert(file_path: str) -> str:
     out_path = os.path.join(OUTPUT_DIR, out_name)
     with open(out_path, 'w') as f:
         f.write(f"# Source: {os.path.basename(file_path)}\n")
-        if ts:
-            f.write(f"# Time Signature: {ts}\n")
-        if bpm:
-            f.write(f"# Tempo: {bpm} BPM\n")
+        if initial_ts:
+            f.write(f"# Time Signature: {initial_ts}\n")
+        if initial_bpm:
+            f.write(f"# Tempo: {initial_bpm} BPM\n")
+        for off, ts_val in sorted(ts_events, key=lambda x: x[0]):
+            f.write(f"# TimeSignature {off:.3f}: {ts_val}\n")
+        for off, bpm_val in sorted(tempo_events, key=lambda x: x[0]):
+            f.write(f"# Tempo {off:.3f}: {int(bpm_val)} BPM\n")
         f.write("# start\tduration\tnotes\n")
         for start, dur, notestr in events:
             f.write(f"{start:.3f}\t{dur:.3f}\t{notestr}\n")
