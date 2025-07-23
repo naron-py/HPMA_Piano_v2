@@ -86,7 +86,7 @@ def convert(file_path: str) -> str:
     score = score.transpose(shift)
     flat_score = score.flatten()
 
-    events = []
+    events_map: dict[tuple[float, float], list[str]] = {}
     for el in flat_score.recurse().getElementsByClass((note.Note, chord.Chord)):
         # Store timing information in beats so playback can adjust according to
         # tempo changes.
@@ -98,9 +98,11 @@ def convert(file_path: str) -> str:
         else:
             midi_vals = [_clamp_midi(p.midi) for p in el.pitches]
             notes = [_midi_to_note(m) for m in midi_vals]
-        events.append((start, dur, '+'.join(notes)))
-    # Sort by the rounded start time so notes starting nearly together are
-    # grouped exactly together for playback.
+        key = (start, dur)
+        events_map.setdefault(key, []).extend(notes)
+
+    events = [(s, d, '+'.join(n)) for (s, d), n in events_map.items()]
+    # Sort by the rounded start time so notes starting together stay together
     events.sort(key=lambda x: x[0])
     basename = os.path.splitext(os.path.basename(file_path))[0]
     out_name = f"{basename}_{timestamp()}.txt"
