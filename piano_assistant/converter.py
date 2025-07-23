@@ -54,6 +54,10 @@ def _round_time(value: float) -> float:
 
 def convert(file_path: str) -> str:
     score = m21converter.parse(file_path)
+    # Merge tied notes so sustained pitches become single longer notes.
+    # This allows the player to hold notes for their full duration instead of
+    # re-triggering ties as separate events.
+    score = score.stripTies(inPlace=False)
 
     # Extract basic metadata for reference during playback and collect all
     # time signature and tempo changes along with their offsets.
