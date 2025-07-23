@@ -44,7 +44,8 @@ in `piano_assistant/output/` with a timestamp in the filename.
 
 ## Display Requirements
 
-`pyautogui` needs access to an X display. The program will attempt to start a
-virtual display automatically when the `DISPLAY` environment variable is not
-set. On headless systems install `pyvirtualdisplay` as shown above or configure
-a display manually.
+`pyautogui` needs access to a GUI display. On Linux the program will try to
+start a virtual X display when the `DISPLAY` variable isn't set. This step is
+skipped on Windows and macOS where a display is usually available. If you are
+running on a headless Linux system, install `pyvirtualdisplay` or configure a
+display manually.
