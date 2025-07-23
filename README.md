@@ -52,3 +52,12 @@ start a virtual X display when the `DISPLAY` variable isn't set. This step is
 skipped on Windows and macOS where a display is usually available. If you are
 running on a headless Linux system, install `pyvirtualdisplay` or configure a
 display manually.
+
+## Testing
+
+Running the test suite requires the project's dependencies. Install them first and then run `pytest`:
+
+```bash
+pip install -r requirements.txt
+pytest
+```
