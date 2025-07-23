@@ -42,8 +42,9 @@ simple text representation and can replay the score using the PC keyboard.
    python -m piano_assistant.main
    ```
 
-Follow the on-screen menu to convert or play songs. Converted files are stored
-in `piano_assistant/output/` with a timestamp in the filename.
+Follow the on-screen menu to convert or play songs. When converting, you can
+choose to output start times and durations in beats or seconds. Converted files
+are stored in `piano_assistant/output/` with a timestamp in the filename.
 
 ## Display Requirements
 

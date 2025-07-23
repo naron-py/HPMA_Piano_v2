@@ -34,8 +34,12 @@ def convert_menu():
     src = select_source_file()
     if not src:
         return
+    use_seconds = False
+    answer = Prompt.ask("Output timings in seconds?", choices=["y", "n"], default="n")
+    if answer.lower() == "y":
+        use_seconds = True
     try:
-        out_path = converter.convert(src)
+        out_path = converter.convert(src, use_seconds=use_seconds)
     except ValueError as e:
         console.print(f"[red]Failed to convert:[/red] {e}")
         return
