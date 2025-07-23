@@ -3,9 +3,14 @@ import atexit
 import time
 from typing import List, Tuple
 
-if not os.environ.get("DISPLAY"):
+# Start a virtual X display when running on Linux without an available DISPLAY.
+# Windows and macOS provide a display by default, so attempting to launch
+# ``pyvirtualdisplay`` there would fail. Only attempt to use a virtual display
+# when no ``DISPLAY`` is set and we're on a POSIX system.
+if os.name != "nt" and not os.environ.get("DISPLAY"):
     try:
         from pyvirtualdisplay import Display
+
         _virtual_display = Display()
         _virtual_display.start()
         atexit.register(_virtual_display.stop)
