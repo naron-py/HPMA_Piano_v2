@@ -8,6 +8,7 @@ from music21 import converter as m21converter, note, chord, meter, tempo
 
 from .key_mapper import BASE_MIDI, NOTE_NAMES
 from .utils import OUTPUT_DIR, timestamp
+from .tempo_utils import beat_to_sec
 
 PLAYABLE_MIN = BASE_MIDI
 PLAYABLE_MAX = BASE_MIDI + 36 - 1
@@ -52,7 +53,7 @@ def _round_time(value: float) -> float:
     return round(value, ROUND_PRECISION)
 
 
-def convert(file_path: str) -> str:
+def convert(file_path: str, use_seconds: bool = False) -> str:
     score = m21converter.parse(file_path)
     # Merge tied notes so sustained pitches become single longer notes.
     # This allows the player to hold notes for their full duration instead of
@@ -108,6 +109,17 @@ def convert(file_path: str) -> str:
     events = [(s, d, '+'.join(n)) for (s, d), n in events_map.items()]
     # Sort by the rounded start time so notes starting together stay together
     events.sort(key=lambda x: x[0])
+    if use_seconds:
+        converted = []
+        for start, dur, notes in events:
+            start_sec = beat_to_sec(start, tempo_events)
+            end_sec = beat_to_sec(start + dur, tempo_events)
+            converted.append((
+                _round_time(start_sec),
+                _round_time(end_sec - start_sec),
+                notes,
+            ))
+        events = converted
     basename = os.path.splitext(os.path.basename(file_path))[0]
     out_name = f"{basename}_{timestamp()}.txt"
     out_path = os.path.join(OUTPUT_DIR, out_name)

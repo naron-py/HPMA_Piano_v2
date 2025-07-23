@@ -3,6 +3,7 @@ import time
 from typing import List, Tuple
 
 from .key_mapper import KEY_MAPPING
+from .tempo_utils import beat_to_sec
 
 
 def _parse_note(note_str: str) -> str:
@@ -43,26 +44,6 @@ def _read_song(song_path: str) -> Tuple[dict, List[Tuple[float, float]], List[Tu
     return metadata, tempo_events, ts_events, events
 
 
-def _beat_to_sec(beat: float, tempo_events: List[Tuple[float, float]], default_bpm: float = 120.0) -> float:
-    tempo_events = sorted(tempo_events, key=lambda x: x[0])
-    if tempo_events and tempo_events[0][0] > 0:
-        tempo_events = [(0.0, default_bpm)] + tempo_events
-    elif not tempo_events:
-        tempo_events = [(0.0, default_bpm)]
-
-    sec = 0.0
-    last_off, last_bpm = tempo_events[0]
-    if beat < last_off:
-        return (beat - 0) * 60.0 / last_bpm
-    sec += (last_off - 0) * 60.0 / last_bpm
-    for off, bpm in tempo_events[1:]:
-        if beat < off:
-            sec += (beat - last_off) * 60.0 / last_bpm
-            return sec
-        sec += (off - last_off) * 60.0 / last_bpm
-        last_off, last_bpm = off, bpm
-    sec += (beat - last_off) * 60.0 / last_bpm
-    return sec
 
 
 def test(song_path: str):
@@ -82,8 +63,8 @@ def test(song_path: str):
     actions = []
     for start, dur, notes in raw_events:
         keys = [_parse_note(n) for n in notes.split('+')]
-        start_sec = _beat_to_sec(start, tempo_events)
-        end_sec = _beat_to_sec(start + dur, tempo_events)
+        start_sec = beat_to_sec(start, tempo_events)
+        end_sec = beat_to_sec(start + dur, tempo_events)
         actions.append((start_sec, 'down', notes, keys))
         actions.append((end_sec, 'up', notes, keys))
     # Sort so that key releases occur before presses at the same time.
