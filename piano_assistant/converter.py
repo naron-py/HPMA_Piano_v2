@@ -79,6 +79,14 @@ def convert(file_path: str, use_seconds: bool = False) -> str:
         tempo_events.append((off, float(tempo_elem.number)))
         if initial_bpm is None:
             initial_bpm = int(tempo_elem.number)
+
+    # Remove duplicate offset/value pairs while preserving order
+    ts_events = sorted(set(ts_events), key=lambda x: x[0])
+    tempo_events = sorted(set(tempo_events), key=lambda x: x[0])
+    if ts_events:
+        initial_ts = ts_events[0][1]
+    if tempo_events:
+        initial_bpm = int(tempo_events[0][1])
     midi_numbers: List[int] = []
     for elem in score.recurse().notes:
         if isinstance(elem, note.Note):
