@@ -1,5 +1,19 @@
+import os
+import atexit
 import time
 from typing import List, Tuple
+
+if not os.environ.get("DISPLAY"):
+    try:
+        from pyvirtualdisplay import Display
+        _virtual_display = Display()
+        _virtual_display.start()
+        atexit.register(_virtual_display.stop)
+    except Exception as e:
+        raise RuntimeError(
+            "No display found. Set the DISPLAY environment variable or install pyvirtualdisplay "
+            "to run in headless mode."
+        ) from e
 
 import pyautogui
 from rich.console import Console

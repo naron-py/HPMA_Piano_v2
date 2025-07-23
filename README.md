@@ -27,6 +27,8 @@ simple text representation and can replay the score using the PC keyboard.
 
    ```bash
    pip install -r requirements.txt
+   # For headless environments, also install pyvirtualdisplay
+   pip install pyvirtualdisplay
    ```
 
 2. Place MIDI or MXL files in `piano_assistant/source_files/`.
@@ -39,3 +41,10 @@ simple text representation and can replay the score using the PC keyboard.
 
 Follow the on-screen menu to convert or play songs. Converted files are stored
 in `piano_assistant/output/` with a timestamp in the filename.
+
+## Display Requirements
+
+`pyautogui` needs access to an X display. The program will attempt to start a
+virtual display automatically when the `DISPLAY` environment variable is not
+set. On headless systems install `pyvirtualdisplay` as shown above or configure
+a display manually.
