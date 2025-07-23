@@ -31,11 +31,13 @@ simple text representation and can replay the score using the PC keyboard.
 
 2. Place MIDI or MXL files in `piano_assistant/source_files/`.
 
-3. Run the program:
+3. Use the CLI to convert, play, or test songs. For example:
 
    ```bash
-   python -m piano_assistant.main
+   python -m piano_assistant.cli convert path/to/file.mid
+   python -m piano_assistant.cli play piano_assistant/output/converted.txt
+   python -m piano_assistant.cli test piano_assistant/output/converted.txt
    ```
 
-Follow the on-screen menu to convert or play songs. Converted files are stored
-in `piano_assistant/output/` with a timestamp in the filename.
+Converted files are stored in `piano_assistant/output/` with a timestamp in the
+filename.

@@ -1,12 +1,11 @@
 from rich.console import Console
 from rich.prompt import Prompt
 
-from . import menu
-
 console = Console()
 
 
-def main():
+def interactive_main():
+    from . import menu
     while True:
         console.print("\n[bold cyan]Piano Assistant[/bold cyan]")
         console.print("[1] Convert Song")
@@ -25,4 +24,5 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    from .cli import main as cli_main
+    cli_main()
